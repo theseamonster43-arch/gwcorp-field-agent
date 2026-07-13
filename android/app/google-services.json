@@ -1,0 +1,54 @@
+{
+  "project_info": {
+    "project_number": "338927356213",
+    "project_id": "gwcorp-ihs",
+    "storage_bucket": "gwcorp-ihs.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:338927356213:android:3492063ee953545098e47c",
+        "android_client_info": {
+          "package_name": "com.gwcorp.fieldagent"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "338927356213-6tlrpgfmpbg9u29v812gs8rbr98m2es8.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.gwcorp.fieldagent",
+            "certificate_hash": "a6a9ff1fe6770b4134e885c8825f5a221bb4f9a4"
+          }
+        },
+        {
+          "client_id": "338927356213-h2oisiedbir6j69spfeg4phaav47edpp.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyB72G3s9ymyCEn1iOR7_WjIiNSMLeW2b8k"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "338927356213-h2oisiedbir6j69spfeg4phaav47edpp.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "338927356213-rftgd9lb7nnlc6fed9rtr56hpm2grl74.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "GWCORP.GWCORP"
+              }
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
