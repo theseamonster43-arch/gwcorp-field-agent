@@ -278,7 +278,7 @@ class _IosSignInScreenState extends State<IosSignInScreen> {
                                       ),
                                       onPressed: () => setState(() => _emailMode = true),
                                     ),
-                                  ),
+                                  )
                                 else ...[
                                   if (_isRegister) ...[
                                     _field('Display Name', CupertinoIcons.person, _nameCtrl, false),
