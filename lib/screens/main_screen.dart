@@ -534,7 +534,7 @@ class _NavItem extends StatelessWidget {
           if (photoUrl != null)
             CircleAvatar(radius: 11, backgroundImage: NetworkImage(photoUrl!))
           else
-            Icon(icon, size: 22, color: color),
+            Icon(icon, size: 20, color: color),
           const SizedBox(height: 2),
           Text(label, style: TextStyle(fontSize: 10, fontWeight: selected ? FontWeight.w700 : FontWeight.w500, color: color)),
         ]),

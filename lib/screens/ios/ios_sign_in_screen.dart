@@ -158,9 +158,7 @@ class _IosSignInScreenState extends State<IosSignInScreen> {
   Widget build(BuildContext context) {
     final isDark = MediaQuery.of(context).platformBrightness == Brightness.dark;
 
-    return DefaultTextStyle(
-      style: GoogleFonts.dmSans(),
-      child: CupertinoPageScaffold(
+    return CupertinoPageScaffold(
       backgroundColor: CupertinoColors.systemBackground.resolveFrom(context),
       child: Stack(
         children: [
@@ -192,7 +190,7 @@ class _IosSignInScreenState extends State<IosSignInScreen> {
                         child: LiquidGlassContainer(
                           config: LiquidGlassConfig(
                             effect: CNGlassEffect.regular,
-                            cornerRadius: 12,
+                            cornerRadius: 8,
                           ),
                           child: Padding(
                             padding: const EdgeInsets.all(32),
@@ -245,7 +243,7 @@ class _IosSignInScreenState extends State<IosSignInScreen> {
                                     label: _loading ? 'Signing in…' : 'Sign in with Google',
                                     icon: CNSymbol('person.crop.circle.badge.checkmark', size: 18),
                                     config: CNButtonConfig(
-                                      style: CNButtonStyle.filled,
+                                      style: CNButtonStyle.glass,
                                       imagePlacement: CNImagePlacement.leading,
                                     ),
                                     onPressed: _loading ? null : _signInWithGoogle,
@@ -335,7 +333,7 @@ class _IosSignInScreenState extends State<IosSignInScreen> {
           ),
         ],
       ),
-    ));
+    );
   }
 
   Widget _field(String label, IconData icon, TextEditingController ctrl, bool obscure, {Widget? suffix}) {

@@ -1,4 +1,5 @@
 import 'dart:io' show Platform;
+import 'package:google_fonts/google_fonts.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
@@ -161,8 +162,8 @@ class _GwAppState extends State<GwApp> with WidgetsBindingObserver {
       child: MaterialApp.router(
         title: 'GWCORP Field Agent',
         debugShowCheckedModeBanner: false,
-        theme:     buildMaterialTheme(GwColors.light),
-        darkTheme: buildMaterialTheme(GwColors.dark),
+        theme:     buildMaterialTheme(GwColors.light).copyWith(textTheme: GoogleFonts.dmSansTextTheme(buildMaterialTheme(GwColors.light).textTheme)),
+        darkTheme: buildMaterialTheme(GwColors.dark).copyWith(textTheme: GoogleFonts.dmSansTextTheme(buildMaterialTheme(GwColors.dark).textTheme)),
         themeMode: _gw.isDark ? ThemeMode.dark : ThemeMode.light,
         routerConfig: _router,
       ),
