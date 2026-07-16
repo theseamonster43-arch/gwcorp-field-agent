@@ -33,6 +33,7 @@ class MainScreen extends StatefulWidget {
 
 class _MainScreenState extends State<MainScreen> {
   int _tab = _tabScans;
+  int _lastMainTab = _tabScans;
   List<ScanSession> _sessions = [];
   DirectChat? _selectedChat;
   bool _showNewChat = false;
@@ -250,20 +251,42 @@ class _MainScreenState extends State<MainScreen> {
                         ),
                 ),
                 Divider(color: gw.border, height: 1),
-                _BottomNav(
-                  selected: _tab,
-                  photoUrl: me?.photoURL,
-                  onSelect: (t) => setState(() {
-                    _tab = t; _selectedChat = null; _showNewChat = false;
-                    _scanPanel = _ScanPanel.none;
-                  }),
-                ),
+                _simpleNav(gw, me),
               ]),
             ),
           ),
           VerticalDivider(color: gw.border, width: 1),
-          // Right panel
-          Expanded(child: _tabletRightPanel(ctx, me)),
+          // Right panel with AI button overlay
+          Expanded(
+            child: Stack(children: [
+              _tabletRightPanel(ctx, me),
+              SafeArea(
+                child: Align(
+                  alignment: Alignment.topRight,
+                  child: Padding(
+                    padding: const EdgeInsets.only(top: 8, right: 12),
+                    child: GestureDetector(
+                      onTap: () => setState(() => _tab = _tabAi),
+                      child: AnimatedContainer(
+                        duration: const Duration(milliseconds: 150),
+                        width: 38, height: 38,
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          color: _tab == _tabAi ? gw.greenGlow : gw.bg3,
+                          border: Border.all(
+                            color: _tab == _tabAi ? gw.green.withOpacity(0.65) : gw.border,
+                            width: _tab == _tabAi ? 1.5 : 1,
+                          ),
+                        ),
+                        child: Icon(Icons.auto_awesome_outlined,
+                            size: 18, color: _tab == _tabAi ? gw.green : gw.muted),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ]),
+          ),
         ]),
       );
 
@@ -276,55 +299,113 @@ class _MainScreenState extends State<MainScreen> {
 
   // ── Phone ────────────────────────────────────────────────────────────────────
 
-  Widget _phoneLayout(BuildContext ctx, GwColors gw, User? me) => Scaffold(
-        backgroundColor: gw.bg,
-        body: Stack(children: [
-          Column(children: [
-            Expanded(child: _phoneBody(ctx)),
-            _BottomNav(
-              selected: _tab,
-              photoUrl: me?.photoURL,
-              onSelect: (t) => setState(() { _tab = t; _scanPanel = _ScanPanel.none; _selectedSessionId = null; }),
+  // ── Shared compact nav (phone bottom + tablet side) ─────────────────────────
+
+  Widget _simpleNav(GwColors gw, User? me, {VoidCallback? onAi}) {
+    final photoUrl = me?.photoURL;
+    final hasPhoto = photoUrl != null && photoUrl.isNotEmpty;
+    final sel      = _tab == _tabAi ? _lastMainTab : _tab;
+
+    void onTap(int i) {
+      setState(() { _tab = i; _lastMainTab = i; _scanPanel = _ScanPanel.none; _selectedSessionId = null; _selectedChat = null; _showNewChat = false; });
+    }
+
+    return Container(
+      decoration: BoxDecoration(
+        color: gw.bg2,
+        border: Border(top: BorderSide(color: gw.border, width: 0.5)),
+      ),
+      child: SafeArea(
+        top: false,
+        child: SizedBox(
+          height: 64,
+          child: Row(children: [
+            _NavItem(icon: Icons.qr_code_scanner_outlined, label: 'Scans',   selected: sel == _tabScans,   onTap: () => onTap(_tabScans),   gw: gw),
+            _NavItem(icon: Icons.forum_outlined,           label: 'Chats',   selected: sel == _tabChats,   onTap: () => onTap(_tabChats),   gw: gw),
+            _NavItem(
+              icon: Icons.account_circle_outlined, label: 'Account',
+              selected: sel == _tabAccount, onTap: () => onTap(_tabAccount), gw: gw,
+              photoUrl: hasPhoto ? photoUrl : null,
             ),
+            if (onAi != null)
+              _NavItem(icon: Icons.auto_awesome_outlined, label: 'AI', selected: _tab == _tabAi, onTap: onAi, gw: gw),
           ]),
-          // Backdrop
-          IgnorePointer(
-            ignoring: !_drawerOpen,
-            child: AnimatedOpacity(
-              duration: const Duration(milliseconds: 280),
-              opacity: _drawerOpen ? 1.0 : 0.0,
+        ),
+      ),
+    );
+  }
+
+  Widget _phoneLayout(BuildContext ctx, GwColors gw, User? me) {
+    return Scaffold(
+      backgroundColor: gw.bg,
+      bottomNavigationBar: _simpleNav(gw, me),
+      body: Stack(children: [
+        _phoneBody(ctx),
+        // Backdrop
+        IgnorePointer(
+          ignoring: !_drawerOpen,
+          child: AnimatedOpacity(
+            duration: const Duration(milliseconds: 280),
+            opacity: _drawerOpen ? 1.0 : 0.0,
+            child: GestureDetector(
+              onTap: () => setState(() => _drawerOpen = false),
+              child: Container(color: Colors.black54),
+            ),
+          ),
+        ),
+        // Sliding drawer
+        AnimatedPositioned(
+          duration: const Duration(milliseconds: 300),
+          curve: Curves.easeOutCubic,
+          left: _drawerOpen ? 0 : -292,
+          top: 0, bottom: 0, width: 288,
+          child: Container(
+            decoration: BoxDecoration(
+              color: gw.bg2,
+              boxShadow: [
+                BoxShadow(color: Colors.black.withOpacity(0.18),
+                    blurRadius: 24, offset: const Offset(4, 0)),
+              ],
+            ),
+            child: _DrawerContent(
+              sessions: _sessions,
+              onClose: () => setState(() => _drawerOpen = false),
+              onTapSession: (id) {
+                setState(() => _drawerOpen = false);
+                ctx.push('/main/session/$id');
+              },
+            ),
+          ),
+        ),
+        // AI button — top right
+        SafeArea(
+          child: Align(
+            alignment: Alignment.topRight,
+            child: Padding(
+              padding: const EdgeInsets.only(top: 8, right: 12),
               child: GestureDetector(
-                onTap: () => setState(() => _drawerOpen = false),
-                child: Container(color: Colors.black54),
+                onTap: () => setState(() => _tab = _tabAi),
+                child: AnimatedContainer(
+                  duration: const Duration(milliseconds: 150),
+                  width: 38, height: 38,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: _tab == _tabAi ? gw.greenGlow : gw.bg3,
+                    border: Border.all(
+                      color: _tab == _tabAi ? gw.green.withOpacity(0.65) : gw.border,
+                      width: _tab == _tabAi ? 1.5 : 1,
+                    ),
+                  ),
+                  child: Icon(Icons.auto_awesome_outlined,
+                      size: 18, color: _tab == _tabAi ? gw.green : gw.muted),
+                ),
               ),
             ),
           ),
-          // Sliding drawer
-          AnimatedPositioned(
-            duration: const Duration(milliseconds: 300),
-            curve: Curves.easeOutCubic,
-            left: _drawerOpen ? 0 : -292,
-            top: 0, bottom: 0, width: 288,
-            child: Container(
-              decoration: BoxDecoration(
-                color: gw.bg2,
-                boxShadow: [
-                  BoxShadow(color: Colors.black.withOpacity(0.18),
-                      blurRadius: 24, offset: const Offset(4, 0)),
-                ],
-              ),
-              child: _DrawerContent(
-                sessions: _sessions,
-                onClose: () => setState(() => _drawerOpen = false),
-                onTapSession: (id) {
-                  setState(() => _drawerOpen = false);
-                  ctx.push('/main/session/$id');
-                },
-              ),
-            ),
-          ),
-        ]),
-      );
+        ),
+      ]),
+    );
+  }
 
   Widget _phoneBody(BuildContext ctx) {
     switch (_tab) {
@@ -430,217 +511,33 @@ class _RailItemState extends State<_RailItem> {
   }
 }
 
-// ── Bottom Nav pill ───────────────────────────────────────────────────────────
+// ── Compact nav item ──────────────────────────────────────────────────────────
 
-class _BottomNav extends StatelessWidget {
-  final int selected;
-  final String? photoUrl;
-  final ValueChanged<int> onSelect;
-
-  const _BottomNav({required this.selected, this.photoUrl, required this.onSelect});
-
-  @override
-  Widget build(BuildContext context) {
-    final gw = GwTheme.of(context);
-    final isAi = selected == _tabAi;
-    return Container(
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.topCenter, end: Alignment.bottomCenter,
-          colors: [Colors.transparent, gw.bg2.withOpacity(0.98)],
-        ),
-      ),
-      padding: EdgeInsets.only(
-        left: 10, right: 10, top: 8,
-        bottom: MediaQuery.of(context).padding.bottom + 8,
-      ),
-      child: Row(
-        children: [
-          Expanded(
-            child: _SlidingPill(
-              selected: selected,
-              photoUrl: photoUrl,
-              onSelect: onSelect,
-            ),
-          ),
-          const SizedBox(width: 8),
-          GestureDetector(
-            onTap: () => onSelect(_tabAi),
-            child: Container(
-              width: 56, height: 56,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                color: gw.bg3,
-                border: Border.all(
-                  color: isAi ? gw.green.withOpacity(0.65) : gw.border,
-                  width: isAi ? 1.5 : 1,
-                ),
-              ),
-              child: Icon(Icons.auto_awesome_outlined,
-                  size: 22, color: isAi ? gw.green : gw.muted),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _SlidingPill extends StatefulWidget {
-  final int selected;
-  final String? photoUrl;
-  final ValueChanged<int> onSelect;
-  const _SlidingPill({required this.selected, this.photoUrl, required this.onSelect});
-  @override
-  State<_SlidingPill> createState() => _SlidingPillState();
-}
-
-class _SlidingPillState extends State<_SlidingPill> with SingleTickerProviderStateMixin {
-  late AnimationController _ctrl;
-  late Animation<double> _anim;
-  double _dragStart = 0;
-
-  @override
-  void initState() {
-    super.initState();
-    _ctrl = AnimationController(vsync: this, duration: const Duration(milliseconds: 350));
-    _anim = _ctrl.drive(CurveTween(curve: Curves.easeOutBack));
-    _syncAnim(widget.selected, animate: false);
-  }
-
-  @override
-  void didUpdateWidget(_SlidingPill old) {
-    super.didUpdateWidget(old);
-    if (old.selected != widget.selected) _syncAnim(widget.selected);
-  }
-
-  void _syncAnim(int tab, {bool animate = true}) {
-    final target = tab == _tabScans ? 0.0 : tab == _tabChats ? 1.0 : tab == _tabAccount ? 2.0 : -1.0;
-    if (target < 0) { _ctrl.value = _ctrl.value; return; }
-    final tween = Tween(begin: (_anim.value * 2).clamp(0.0, 2.0), end: target);
-    _anim = _ctrl.drive(tween.chain(CurveTween(curve: Curves.easeOutBack)));
-    if (animate) _ctrl.forward(from: 0); else _ctrl.value = 1;
-  }
-
-  @override
-  void dispose() { _ctrl.dispose(); super.dispose(); }
-
-  @override
-  Widget build(BuildContext context) {
-    final gw = GwTheme.of(context);
-    final showIndicator = widget.selected != _tabAi;
-
-    return GestureDetector(
-      onHorizontalDragStart: (d) => _dragStart = d.localPosition.dx,
-      onHorizontalDragEnd: (d) {
-        final delta = d.localPosition.dx - _dragStart;
-        if (delta < -40) {
-          if (widget.selected == _tabScans)   widget.onSelect(_tabChats);
-          else if (widget.selected == _tabChats) widget.onSelect(_tabAccount);
-        } else if (delta > 40) {
-          if (widget.selected == _tabAccount) widget.onSelect(_tabChats);
-          else if (widget.selected == _tabChats) widget.onSelect(_tabScans);
-        }
-      },
-      child: AnimatedBuilder(
-        animation: _anim,
-        builder: (ctx, _) {
-          return LayoutBuilder(builder: (ctx, constraints) {
-            final third = constraints.maxWidth / 3;
-            final fraction = showIndicator ? _anim.value : 0.0;
-            return Container(
-              decoration: BoxDecoration(
-                color: gw.bg3.withOpacity(0.95),
-                borderRadius: BorderRadius.circular(99),
-                border: Border.all(color: gw.border),
-              ),
-              padding: const EdgeInsets.all(3),
-              child: Stack(
-                children: [
-                  // Sliding indicator
-                  if (showIndicator)
-                    Positioned(
-                      left: third * fraction + third * 0.06,
-                      top: 4, bottom: 4,
-                      width: third * 0.88,
-                      child: Container(
-                        decoration: BoxDecoration(
-                          color: gw.green.withOpacity(0.15),
-                          borderRadius: BorderRadius.circular(99),
-                          border: Border.all(color: gw.green.withOpacity(0.2)),
-                        ),
-                      ),
-                    ),
-                  // Tabs row
-                  Row(children: [
-                    _PillTab(
-                      icon: Icons.qr_code_scanner_outlined,
-                      label: 'Scans',
-                      selected: widget.selected == _tabScans,
-                      onTap: () => widget.onSelect(_tabScans),
-                    ),
-                    _PillTab(
-                      icon: Icons.forum_outlined,
-                      label: 'Chats',
-                      selected: widget.selected == _tabChats,
-                      onTap: () => widget.onSelect(_tabChats),
-                    ),
-                    _PillTab(
-                      icon: Icons.account_circle_outlined,
-                      label: 'Account',
-                      selected: widget.selected == _tabAccount,
-                      photoUrl: widget.photoUrl,
-                      onTap: () => widget.onSelect(_tabAccount),
-                    ),
-                  ]),
-                ],
-              ),
-            );
-          });
-        },
-      ),
-    );
-  }
-}
-
-class _PillTab extends StatelessWidget {
+class _NavItem extends StatelessWidget {
   final IconData icon;
   final String label;
   final bool selected;
-  final String? photoUrl;
   final VoidCallback onTap;
-  const _PillTab({required this.icon, required this.label, required this.selected,
-      this.photoUrl, required this.onTap});
+  final GwColors gw;
+  final String? photoUrl;
+  const _NavItem({required this.icon, required this.label, required this.selected,
+      required this.onTap, required this.gw, this.photoUrl});
 
   @override
   Widget build(BuildContext context) {
-    final gw = GwTheme.of(context);
+    final color = selected ? gw.green : gw.muted;
     return Expanded(
       child: GestureDetector(
         behavior: HitTestBehavior.opaque,
         onTap: onTap,
-        child: Padding(
-          padding: const EdgeInsets.symmetric(vertical: 11, horizontal: 10),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              if (photoUrl != null && photoUrl!.isNotEmpty && label == 'Account')
-                CircleAvatar(
-                  radius: 13,
-                  backgroundImage: NetworkImage(photoUrl!),
-                )
-              else
-                Icon(icon, size: 26, color: selected ? gw.green : gw.muted),
-              const SizedBox(height: 3),
-              Text(label,
-                  style: TextStyle(
-                    fontSize: 13,
-                    fontWeight: selected ? FontWeight.w600 : FontWeight.normal,
-                    color: selected ? gw.green : gw.muted,
-                  )),
-            ],
-          ),
-        ),
+        child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
+          if (photoUrl != null)
+            CircleAvatar(radius: 11, backgroundImage: NetworkImage(photoUrl!))
+          else
+            Icon(icon, size: 22, color: color),
+          const SizedBox(height: 2),
+          Text(label, style: TextStyle(fontSize: 10, fontWeight: selected ? FontWeight.w700 : FontWeight.w500, color: color)),
+        ]),
       ),
     );
   }

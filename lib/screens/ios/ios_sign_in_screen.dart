@@ -5,6 +5,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../../data/user_repository.dart';
@@ -157,7 +158,9 @@ class _IosSignInScreenState extends State<IosSignInScreen> {
   Widget build(BuildContext context) {
     final isDark = MediaQuery.of(context).platformBrightness == Brightness.dark;
 
-    return CupertinoPageScaffold(
+    return DefaultTextStyle(
+      style: GoogleFonts.dmSans(),
+      child: CupertinoPageScaffold(
       backgroundColor: CupertinoColors.systemBackground.resolveFrom(context),
       child: Stack(
         children: [
@@ -189,7 +192,7 @@ class _IosSignInScreenState extends State<IosSignInScreen> {
                         child: LiquidGlassContainer(
                           config: LiquidGlassConfig(
                             effect: CNGlassEffect.regular,
-                            cornerRadius: 28,
+                            cornerRadius: 18,
                           ),
                           child: Padding(
                             padding: const EdgeInsets.all(32),
@@ -270,12 +273,12 @@ class _IosSignInScreenState extends State<IosSignInScreen> {
                                       label: 'Continue with Email',
                                       icon: CNSymbol('envelope', size: 18),
                                       config: CNButtonConfig(
-                                        style: CNButtonStyle.glass,
+                                        style: CNButtonStyle.tinted,
                                         imagePlacement: CNImagePlacement.leading,
                                       ),
                                       onPressed: () => setState(() => _emailMode = true),
                                     ),
-                                  )
+                                  ),
                                 else ...[
                                   if (_isRegister) ...[
                                     _field('Display Name', CupertinoIcons.person, _nameCtrl, false),
@@ -332,7 +335,7 @@ class _IosSignInScreenState extends State<IosSignInScreen> {
           ),
         ],
       ),
-    );
+    ));
   }
 
   Widget _field(String label, IconData icon, TextEditingController ctrl, bool obscure, {Widget? suffix}) {

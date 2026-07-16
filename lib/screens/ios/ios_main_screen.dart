@@ -41,6 +41,7 @@ class _IosMainScreenState extends State<IosMainScreen> {
           DashboardScreen(
             onMenuClick: () {},
             sessionCount: _sessions.length,
+            onViewChats: () => setState(() => _tab = 1),
           ),
           ChatsScreen(onNavigate: (p) => context.push(p)),
           AccountScreen(onNavigate: (p) => context.push(p)),
