@@ -192,7 +192,7 @@ class _IosSignInScreenState extends State<IosSignInScreen> {
                         child: LiquidGlassContainer(
                           config: LiquidGlassConfig(
                             effect: CNGlassEffect.regular,
-                            cornerRadius: 18,
+                            cornerRadius: 12,
                           ),
                           child: Padding(
                             padding: const EdgeInsets.all(32),
@@ -273,7 +273,7 @@ class _IosSignInScreenState extends State<IosSignInScreen> {
                                       label: 'Continue with Email',
                                       icon: CNSymbol('envelope', size: 18),
                                       config: CNButtonConfig(
-                                        style: CNButtonStyle.tinted,
+                                        style: CNButtonStyle.glass,
                                         imagePlacement: CNImagePlacement.leading,
                                       ),
                                       onPressed: () => setState(() => _emailMode = true),
@@ -297,7 +297,7 @@ class _IosSignInScreenState extends State<IosSignInScreen> {
                                     width: double.infinity,
                                     child: CNButton(
                                       label: _loading ? 'Please wait…' : (_isRegister ? 'Create Account' : 'Sign In'),
-                                      config: CNButtonConfig(style: CNButtonStyle.filled),
+                                      config: CNButtonConfig(style: CNButtonStyle.glass),
                                       onPressed: _loading ? null : _submitEmail,
                                     ),
                                   ),
