@@ -163,7 +163,7 @@ class _IosMainScreenState extends State<IosMainScreen> {
             label: 'Scans',
           ),
           BottomNavigationBarItem(
-            icon: Icon(CupertinoIcons.bubble_left_and_bubble_right),
+            icon: Icon(CupertinoIcons.bubble_left_bubble_right),
             label: 'Chats',
           ),
           BottomNavigationBarItem(

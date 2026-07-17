@@ -2,6 +2,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:cupertino_native_better/cupertino_native_better.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/cupertino.dart';
+import 'package:flutter/material.dart' show CircleAvatar;
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 import '../../data/direct_chat_repository.dart';
@@ -27,7 +28,7 @@ class _IosChatsListState extends State<IosChatsList> {
             ? CupertinoButton(
                 padding: EdgeInsets.zero,
                 onPressed: () => context.push('/main/newchat'),
-                child: const Icon(CupertinoIcons.square_and_pencil),
+                child: const Icon(CupertinoIcons.square_pencil),
               )
             : null,
       ),
