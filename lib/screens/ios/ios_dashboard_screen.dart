@@ -3,6 +3,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart' show CircleAvatar, Icons;
 import 'package:go_router/go_router.dart';
+import '../../widgets/gw_icon_button.dart';
 
 class IosDashboardScreen extends StatelessWidget {
   final VoidCallback onMenuClick;
@@ -28,10 +29,11 @@ class IosDashboardScreen extends StatelessWidget {
 
     return CupertinoPageScaffold(
       navigationBar: CupertinoNavigationBar(
-        leading: CupertinoButton(
-          padding: EdgeInsets.zero,
+        leading: GwIconButton(
+          icon: Icons.menu_rounded,
+          size: 20,
+          color: CupertinoColors.label.resolveFrom(context),
           onPressed: onMenuClick,
-          child: const Icon(Icons.menu_rounded),
         ),
         middle: Row(mainAxisSize: MainAxisSize.min, children: [
           Container(

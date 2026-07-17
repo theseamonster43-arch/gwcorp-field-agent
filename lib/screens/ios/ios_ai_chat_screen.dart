@@ -2,6 +2,7 @@ import 'package:cupertino_native_better/cupertino_native_better.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart' show Icons;
 import '../../services/claude_service.dart';
+import '../../widgets/gw_icon_button.dart';
 
 class IosAiChatScreen extends StatefulWidget {
   final VoidCallback onMenuClick;
@@ -49,10 +50,11 @@ class _IosAiChatScreenState extends State<IosAiChatScreen> {
   Widget build(BuildContext context) {
     return CupertinoPageScaffold(
       navigationBar: CupertinoNavigationBar(
-        leading: CupertinoButton(
-          padding: EdgeInsets.zero,
+        leading: GwIconButton(
+          icon: Icons.menu,
+          size: 20,
+          color: CupertinoColors.label.resolveFrom(context),
           onPressed: widget.onMenuClick,
-          child: const Icon(Icons.menu),
         ),
         middle: Row(mainAxisSize: MainAxisSize.min, children: const [
           Icon(Icons.auto_awesome, size: 16, color: Color(0xFF22C55E)),

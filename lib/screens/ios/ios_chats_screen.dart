@@ -8,6 +8,7 @@ import 'package:intl/intl.dart';
 import '../../data/direct_chat_repository.dart';
 import '../../data/models.dart';
 import '../../data/user_repository.dart';
+import '../../widgets/gw_icon_button.dart';
 
 class IosChatsList extends StatefulWidget {
   const IosChatsList({super.key});
@@ -25,10 +26,11 @@ class _IosChatsListState extends State<IosChatsList> {
       navigationBar: CupertinoNavigationBar(
         middle: Text(_seg == 0 ? 'Messages' : 'Community'),
         trailing: _seg == 0
-            ? CupertinoButton(
-                padding: EdgeInsets.zero,
+            ? GwIconButton(
+                icon: Icons.add,
+                size: 20,
+                color: CupertinoColors.label.resolveFrom(context),
                 onPressed: () => context.push('/main/newchat'),
-                child: const Icon(Icons.add),
               )
             : null,
       ),
