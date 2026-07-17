@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'package:cupertino_native_better/cupertino_native_better.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
@@ -307,11 +308,9 @@ class _AccountScreenState extends State<AccountScreen> {
                 style: TextStyle(color: gw.text, fontSize: 14,
                     fontWeight: FontWeight.w500)),
           ),
-          Switch.adaptive(
-            value: value,
-            activeColor: gw.green,
-            onChanged: onChanged,
-          ),
+          Platform.isIOS
+              ? CNSwitch(value: value, onChanged: onChanged)
+              : Switch.adaptive(value: value, activeColor: gw.green, onChanged: onChanged),
         ]),
       );
 }

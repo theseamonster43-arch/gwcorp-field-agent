@@ -4,6 +4,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:google_fonts/google_fonts.dart';
 import '../../data/history_repository.dart';
 import '../../data/models.dart';
 import '../../theme/gw_theme.dart';
@@ -34,6 +35,29 @@ class _IosMainScreenState extends State<IosMainScreen> {
     HistoryRepository.sessionsStream().listen((s) {
       if (mounted) setState(() => _sessions = s);
     });
+  }
+
+  Widget _tab_(IconData icon, String? label, int index) {
+    final sel = _tab == index;
+    const green = Color(0xFF22C55E);
+    return Expanded(
+      child: GestureDetector(
+        onTap: () => setState(() => _tab = index),
+        behavior: HitTestBehavior.opaque,
+        child: Column(mainAxisSize: MainAxisSize.min, children: [
+          Icon(icon, size: 20, color: sel ? green : Colors.grey),
+          if (label != null) ...[
+            const SizedBox(height: 2),
+            Text(label,
+                style: GoogleFonts.dmSans(
+                  fontSize: 10,
+                  fontWeight: sel ? FontWeight.w700 : FontWeight.w500,
+                  color: sel ? green : Colors.grey,
+                )),
+          ],
+        ]),
+      ),
+    );
   }
 
   @override
@@ -123,17 +147,25 @@ class _IosMainScreenState extends State<IosMainScreen> {
           ),
         ),
       ]),
-      bottomNavigationBar: CNTabBar(
-        currentIndex: _tab,
-        onTap: (i) => setState(() => _tab = i),
-        split: true,
-        rightCount: 1,
-        items: [
-          CNTabBarItem(label: 'Scans',   icon: CNSymbol('qrcode.viewfinder')),
-          CNTabBarItem(label: 'Chats',   icon: CNSymbol('bubble.left.and.bubble.right')),
-          CNTabBarItem(label: 'Account', icon: CNSymbol('person.circle')),
-          CNTabBarItem(label: 'AI',      icon: CNSymbol('sparkles')),
-        ],
+      bottomNavigationBar: Container(
+        color: Colors.transparent,
+        child: SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.only(left: 16, right: 16, bottom: 8, top: 4),
+            child: LiquidGlassContainer(
+              config: LiquidGlassConfig(effect: CNGlassEffect.regular, cornerRadius: 20),
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 10),
+                child: Row(children: [
+                  _tab_(Icons.qr_code_scanner_outlined, 'Scans',   0),
+                  _tab_(Icons.forum_outlined,           'Chats',   1),
+                  _tab_(Icons.account_circle_outlined,  'Account', 2),
+                  _tab_(Icons.auto_awesome_outlined,    null,      3),
+                ]),
+              ),
+            ),
+          ),
+        ),
       ),
     );
   }
