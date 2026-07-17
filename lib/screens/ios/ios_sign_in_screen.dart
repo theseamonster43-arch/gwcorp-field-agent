@@ -187,7 +187,12 @@ class _IosSignInScreenState extends State<IosSignInScreen> {
                       padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 32),
                       child: ConstrainedBox(
                         constraints: const BoxConstraints(maxWidth: 400),
-                        child: Padding(
+                        child: LiquidGlassContainer(
+                          config: LiquidGlassConfig(
+                            effect: CNGlassEffect.regular,
+                            cornerRadius: 20,
+                          ),
+                          child: Padding(
                             padding: const EdgeInsets.all(32),
                             child: Column(
                               mainAxisSize: MainAxisSize.min,
@@ -323,6 +328,7 @@ class _IosSignInScreenState extends State<IosSignInScreen> {
                     ),
                   ),
                 ),
+              ),
             ),
           ),
         ],
