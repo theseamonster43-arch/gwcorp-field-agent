@@ -1,3 +1,4 @@
+import 'package:cupertino_native_better/cupertino_native_better.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
@@ -153,28 +154,15 @@ class _IosMainScreenState extends State<IosMainScreen> {
         ),
       ]),
 
-      bottomNavigationBar: CupertinoTabBar(
+      bottomNavigationBar: CNTabBar(
+        items: [
+          CNTabBarItem(label: 'Scans',   icon: CNSymbol('qrcode.viewfinder')),
+          CNTabBarItem(label: 'Chats',   icon: CNSymbol('bubble.left.and.bubble.right')),
+          CNTabBarItem(label: 'Account', icon: CNSymbol('person.crop.circle')),
+          CNTabBarItem(label: 'AI',      icon: CNSymbol('sparkles')),
+        ],
         currentIndex: _tab,
         onTap: (i) => setState(() => _tab = i),
-        activeColor: const Color(0xFF22C55E),
-        items: const [
-          BottomNavigationBarItem(
-            icon: Icon(CupertinoIcons.qrcode_viewfinder),
-            label: 'Scans',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(CupertinoIcons.bubble_left_bubble_right),
-            label: 'Chats',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(CupertinoIcons.person_crop_circle),
-            label: 'Account',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(CupertinoIcons.sparkles),
-            label: 'AI',
-          ),
-        ],
       ),
     );
   }

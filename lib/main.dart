@@ -1,4 +1,5 @@
 import 'dart:io' show Platform;
+import 'package:google_fonts/google_fonts.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/cupertino.dart';
@@ -166,27 +167,34 @@ class _GwAppState extends State<GwApp> with WidgetsBindingObserver {
       child: CupertinoTheme(
         data: CupertinoThemeData(
           brightness: currentBrightness,
+          primaryColor: const Color(0xFF22C55E),
           textTheme: CupertinoTextThemeData(
-            navTitleTextStyle: TextStyle(
-              // To use a registered custom font asset, replace null with your family string name (e.g. 'DMSans')
-              fontFamily: null, 
+            textStyle: GoogleFonts.dmSans(
+              fontSize: 17,
+              color: _gw.isDark ? CupertinoColors.white : CupertinoColors.black,
+            ),
+            actionTextStyle: GoogleFonts.dmSans(
+              fontSize: 17,
+              color: const Color(0xFF22C55E),
+            ),
+            navTitleTextStyle: GoogleFonts.dmSans(
               fontSize: 17,
               fontWeight: FontWeight.w600,
               color: _gw.isDark ? CupertinoColors.white : CupertinoColors.black,
             ),
-            navLargeTitleTextStyle: TextStyle(
-              fontFamily: null, 
+            navLargeTitleTextStyle: GoogleFonts.dmSans(
               fontSize: 34,
               fontWeight: FontWeight.w700,
               color: _gw.isDark ? CupertinoColors.white : CupertinoColors.black,
             ),
+            tabLabelTextStyle: GoogleFonts.dmSans(fontSize: 10),
           ),
         ),
         child: MaterialApp.router(
           title: 'GWCORP Field Agent',
           debugShowCheckedModeBanner: false,
-          theme: buildMaterialTheme(GwColors.light),
-          darkTheme: buildMaterialTheme(GwColors.dark),
+          theme:     buildMaterialTheme(GwColors.light).copyWith(textTheme: GoogleFonts.dmSansTextTheme(buildMaterialTheme(GwColors.light).textTheme)),
+          darkTheme: buildMaterialTheme(GwColors.dark).copyWith(textTheme: GoogleFonts.dmSansTextTheme(buildMaterialTheme(GwColors.dark).textTheme)),
           themeMode: _gw.isDark ? ThemeMode.dark : ThemeMode.light,
           routerConfig: _router,
         ),
