@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'glass_effect.dart';
 
@@ -19,7 +20,6 @@ class GwIconButton extends StatelessWidget {
   }
 }
 
-// Wraps any child widget in liquid glass on iOS, plain GestureDetector otherwise
 class GwGlassButton extends StatelessWidget {
   final Widget child;
   final VoidCallback? onTap;
@@ -30,15 +30,26 @@ class GwGlassButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final inner = padding != null ? Padding(padding: padding!, child: child) : child;
     if (Platform.isIOS) {
       return GestureDetector(
         onTap: onTap,
-        child: LiquidGlassContainer(
-          config: LiquidGlassConfig(effect: CNGlassEffect.regular, cornerRadius: radius),
-          child: padding != null ? Padding(padding: padding!, child: child) : child,
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(radius),
+          child: BackdropFilter(
+            filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
+            child: Container(
+              decoration: BoxDecoration(
+                color: Colors.white.withOpacity(0.12),
+                borderRadius: BorderRadius.circular(radius),
+                border: Border.all(color: Colors.white.withOpacity(0.2)),
+              ),
+              child: inner,
+            ),
+          ),
         ),
       );
     }
-    return GestureDetector(onTap: onTap, child: padding != null ? Padding(padding: padding!, child: child) : child);
+    return GestureDetector(onTap: onTap, child: inner);
   }
 }
