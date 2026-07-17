@@ -21,6 +21,7 @@ class _IosChatsListState extends State<IosChatsList> {
   Widget build(BuildContext context) {
     final myEmail = FirebaseAuth.instance.currentUser?.email ?? '';
     return CupertinoPageScaffold(
+      backgroundColor: const Color(0x00000000),
       navigationBar: CupertinoNavigationBar(
         middle: Text(_seg == 0 ? 'Messages' : 'Community'),
         trailing: _seg == 0

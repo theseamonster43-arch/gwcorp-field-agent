@@ -36,8 +36,36 @@ class _IosMainScreenState extends State<IosMainScreen> {
   @override
   Widget build(BuildContext context) {
     final gw = GwTheme.of(context);
+    final isDark = MediaQuery.of(context).platformBrightness == Brightness.dark;
     return Scaffold(
+      backgroundColor: isDark ? const Color(0xFF0B1A0D) : const Color(0xFFECFDF5),
       body: Stack(children: [
+        // Rich gradient + blobs — glass blurs THIS, making the effect visible
+        Positioned.fill(
+          child: Container(
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: isDark
+                    ? [const Color(0xFF0E2115), const Color(0xFF091209), const Color(0xFF0B1A0E)]
+                    : [const Color(0xFFB8F5D4), const Color(0xFFECFDF5), const Color(0xFFD1FAE5)],
+              ),
+            ),
+          ),
+        ),
+        Positioned(top: 40, left: -60,
+          child: Container(width: 220, height: 220,
+              decoration: BoxDecoration(shape: BoxShape.circle,
+                  color: const Color(0xFF22C55E).withOpacity(isDark ? 0.25 : 0.35)))),
+        Positioned(top: 200, right: -80,
+          child: Container(width: 180, height: 180,
+              decoration: BoxDecoration(shape: BoxShape.circle,
+                  color: const Color(0xFF16A34A).withOpacity(isDark ? 0.18 : 0.28)))),
+        Positioned(bottom: 160, left: 30,
+          child: Container(width: 140, height: 140,
+              decoration: BoxDecoration(shape: BoxShape.circle,
+                  color: const Color(0xFF4ADE80).withOpacity(isDark ? 0.15 : 0.22)))),
         IndexedStack(
           index: _tab,
           children: [

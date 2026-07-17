@@ -26,6 +26,7 @@ class IosDashboardScreen extends StatelessWidget {
         .toUpperCase();
 
     return CupertinoPageScaffold(
+      backgroundColor: const Color(0x00000000),
       navigationBar: CupertinoNavigationBar(
         leading: CupertinoButton(
           padding: EdgeInsets.zero,
