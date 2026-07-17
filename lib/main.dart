@@ -6,6 +6,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
 import 'package:window_manager/window_manager.dart';
+import 'package:cupertino_native_better/cupertino_native_better.dart';
 import 'firebase_options.dart';
 import 'theme/gw_theme.dart';
 import 'utils/app_preferences.dart';
@@ -68,6 +69,7 @@ Page<void> _slidePage(GoRouterState state, Widget child) => CustomTransitionPage
 
 final _router = GoRouter(
   initialLocation: '/splash',
+  observers: [CNTabBarRouteObserver()],
   routes: [
     GoRoute(path: '/splash',  pageBuilder: (_, s) => _fadePage(s, const SplashScreen())),
     GoRoute(path: '/signin',  pageBuilder: (_, s) => _fadePage(s, Platform.isIOS ? const IosSignInScreen() : const SignInScreen())),
