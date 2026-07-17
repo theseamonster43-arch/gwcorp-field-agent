@@ -1,5 +1,4 @@
 import 'dart:io' show Platform;
-import 'package:google_fonts/google_fonts.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/cupertino.dart';
@@ -160,18 +159,23 @@ class _GwAppState extends State<GwApp> with WidgetsBindingObserver {
 
   @override
   Widget build(BuildContext context) {
+    final currentBrightness = _gw.isDark ? Brightness.dark : Brightness.light;
+
     return GwTheme(
       colors: _gw,
       child: CupertinoTheme(
         data: CupertinoThemeData(
-          brightness: _gw.isDark ? Brightness.dark : Brightness.light,
+          brightness: currentBrightness,
           textTheme: CupertinoTextThemeData(
-            navTitleTextStyle: GoogleFonts.dmSans(
+            navTitleTextStyle: TextStyle(
+              // To use a registered custom font asset, replace null with your family string name (e.g. 'DMSans')
+              fontFamily: null, 
               fontSize: 17,
               fontWeight: FontWeight.w600,
               color: _gw.isDark ? CupertinoColors.white : CupertinoColors.black,
             ),
-            navLargeTitleTextStyle: GoogleFonts.dmSans(
+            navLargeTitleTextStyle: TextStyle(
+              fontFamily: null, 
               fontSize: 34,
               fontWeight: FontWeight.w700,
               color: _gw.isDark ? CupertinoColors.white : CupertinoColors.black,
@@ -181,8 +185,8 @@ class _GwAppState extends State<GwApp> with WidgetsBindingObserver {
         child: MaterialApp.router(
           title: 'GWCORP Field Agent',
           debugShowCheckedModeBanner: false,
-          theme:     buildMaterialTheme(GwColors.light).copyWith(textTheme: GoogleFonts.dmSansTextTheme(buildMaterialTheme(GwColors.light).textTheme)),
-          darkTheme: buildMaterialTheme(GwColors.dark).copyWith(textTheme: GoogleFonts.dmSansTextTheme(buildMaterialTheme(GwColors.dark).textTheme)),
+          theme: buildMaterialTheme(GwColors.light),
+          darkTheme: buildMaterialTheme(GwColors.dark),
           themeMode: _gw.isDark ? ThemeMode.dark : ThemeMode.light,
           routerConfig: _router,
         ),
