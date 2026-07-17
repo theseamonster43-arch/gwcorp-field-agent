@@ -97,7 +97,6 @@ class _IosAccountScreenState extends State<IosAccountScreen> {
     final photo = me?.photoURL?.isNotEmpty == true ? me!.photoURL : null;
 
     return CupertinoPageScaffold(
-      backgroundColor: const Color(0x00000000),
       navigationBar: const CupertinoNavigationBar(middle: Text('Account')),
       child: ListView(
         padding: EdgeInsets.zero,
