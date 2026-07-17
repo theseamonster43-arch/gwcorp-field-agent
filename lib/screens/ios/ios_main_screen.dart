@@ -1,11 +1,7 @@
-import 'package:cached_network_image/cached_network_image.dart';
 import 'package:cupertino_native_better/cupertino_native_better.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
-import 'package:google_fonts/google_fonts.dart';
-import '../../widgets/glass_effect.dart';
 import '../../data/history_repository.dart';
 import '../../data/models.dart';
 import '../../theme/gw_theme.dart';
@@ -38,34 +34,10 @@ class _IosMainScreenState extends State<IosMainScreen> {
     });
   }
 
-  Widget _tab_(IconData icon, String? label, int index) {
-    final sel = _tab == index;
-    const green = Color(0xFF22C55E);
-    return Expanded(
-      child: GestureDetector(
-        onTap: () => setState(() => _tab = index),
-        behavior: HitTestBehavior.opaque,
-        child: Column(mainAxisSize: MainAxisSize.min, children: [
-          Icon(icon, size: 20, color: sel ? green : Colors.grey),
-          if (label != null) ...[
-            const SizedBox(height: 2),
-            Text(label,
-                style: GoogleFonts.dmSans(
-                  fontSize: 10,
-                  fontWeight: sel ? FontWeight.w700 : FontWeight.w500,
-                  color: sel ? green : Colors.grey,
-                )),
-          ],
-        ]),
-      ),
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
     final gw = GwTheme.of(context);
     return Scaffold(
-      extendBody: true,
       body: Stack(children: [
         IndexedStack(
           index: _tab,
@@ -149,25 +121,31 @@ class _IosMainScreenState extends State<IosMainScreen> {
           ),
         ),
       ]),
-      bottomNavigationBar: Container(
-        color: Colors.transparent,
-        child: SafeArea(
-          child: Padding(
-            padding: const EdgeInsets.only(left: 16, right: 16, bottom: 8, top: 4),
-            child: GlassCard(
-              radius: 20,
-              child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 10),
-                child: Row(children: [
-                  _tab_(Icons.qr_code_scanner_outlined, 'Scans',   0),
-                  _tab_(Icons.forum_outlined,           'Chats',   1),
-                  _tab_(Icons.account_circle_outlined,  'Account', 2),
-                  _tab_(Icons.auto_awesome_outlined,    null,      3),
-                ]),
-              ),
-            ),
+      bottomNavigationBar: CNTabBar(
+        items: [
+          CNTabBarItem(
+            label: 'Scans',
+            icon: CNSymbol('qrcode.viewfinder'),
+            activeIcon: CNSymbol('qrcode.viewfinder'),
           ),
-        ),
+          CNTabBarItem(
+            label: 'Chats',
+            icon: CNSymbol('bubble.left.and.bubble.right'),
+            activeIcon: CNSymbol('bubble.left.and.bubble.right.fill'),
+          ),
+          CNTabBarItem(
+            label: 'Account',
+            icon: CNSymbol('person.crop.circle'),
+            activeIcon: CNSymbol('person.crop.circle.fill'),
+          ),
+          CNTabBarItem(
+            label: '',
+            icon: CNSymbol('sparkles'),
+            activeIcon: CNSymbol('sparkles'),
+          ),
+        ],
+        currentIndex: _tab,
+        onTap: (i) => setState(() => _tab = i),
       ),
     );
   }

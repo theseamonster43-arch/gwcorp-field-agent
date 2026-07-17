@@ -1,7 +1,6 @@
 import 'dart:io';
-import 'dart:ui';
+import 'package:cupertino_native_better/cupertino_native_better.dart';
 import 'package:flutter/material.dart';
-import 'glass_effect.dart';
 
 class GwIconButton extends StatelessWidget {
   final IconData icon;
@@ -14,7 +13,21 @@ class GwIconButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     if (Platform.isIOS) {
-      return GlassIconBtn(icon: icon, onPressed: onPressed, color: color, size: size);
+      return LiquidGlassContainer(
+        config: LiquidGlassConfig(
+          effect: CNGlassEffect.regular,
+          shape: CNGlassEffectShape.capsule,
+          cornerRadius: 10,
+          interactive: true,
+        ),
+        child: GestureDetector(
+          onTap: onPressed,
+          child: Padding(
+            padding: const EdgeInsets.all(8),
+            child: Icon(icon, size: size, color: color),
+          ),
+        ),
+      );
     }
     return IconButton(icon: Icon(icon, color: color, size: size), onPressed: onPressed);
   }
@@ -32,21 +45,16 @@ class GwGlassButton extends StatelessWidget {
   Widget build(BuildContext context) {
     final inner = padding != null ? Padding(padding: padding!, child: child) : child;
     if (Platform.isIOS) {
-      return GestureDetector(
-        onTap: onTap,
-        child: ClipRRect(
-          borderRadius: BorderRadius.circular(radius),
-          child: BackdropFilter(
-            filter: ImageFilter.blur(sigmaX: 30, sigmaY: 30),
-            child: Container(
-              decoration: BoxDecoration(
-                color: Colors.white.withOpacity(0.22),
-                borderRadius: BorderRadius.circular(radius),
-                border: Border.all(color: Colors.white.withOpacity(0.40), width: 1.2),
-              ),
-              child: inner,
-            ),
-          ),
+      return LiquidGlassContainer(
+        config: LiquidGlassConfig(
+          effect: CNGlassEffect.regular,
+          shape: CNGlassEffectShape.rect,
+          cornerRadius: radius,
+          interactive: true,
+        ),
+        child: GestureDetector(
+          onTap: onTap,
+          child: inner,
         ),
       );
     }
