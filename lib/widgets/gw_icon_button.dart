@@ -1,6 +1,6 @@
 import 'dart:io';
-import 'package:cupertino_native_better/cupertino_native_better.dart';
 import 'package:flutter/material.dart';
+import 'glass_effect.dart';
 
 class GwIconButton extends StatelessWidget {
   final IconData icon;
@@ -13,16 +13,7 @@ class GwIconButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     if (Platform.isIOS) {
-      return GestureDetector(
-        onTap: onPressed,
-        child: LiquidGlassContainer(
-          config: LiquidGlassConfig(effect: CNGlassEffect.regular, cornerRadius: 10),
-          child: Padding(
-            padding: const EdgeInsets.all(8),
-            child: Icon(icon, size: size, color: color),
-          ),
-        ),
-      );
+      return GlassIconBtn(icon: icon, onPressed: onPressed, color: color, size: size);
     }
     return IconButton(icon: Icon(icon, color: color, size: size), onPressed: onPressed);
   }

@@ -5,6 +5,7 @@ import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
+import '../../widgets/glass_effect.dart';
 import '../../data/history_repository.dart';
 import '../../data/models.dart';
 import '../../theme/gw_theme.dart';
@@ -152,8 +153,8 @@ class _IosMainScreenState extends State<IosMainScreen> {
         child: SafeArea(
           child: Padding(
             padding: const EdgeInsets.only(left: 16, right: 16, bottom: 8, top: 4),
-            child: LiquidGlassContainer(
-              config: LiquidGlassConfig(effect: CNGlassEffect.regular, cornerRadius: 20),
+            child: GlassCard(
+              radius: 20,
               child: Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 10),
                 child: Row(children: [

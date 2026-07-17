@@ -9,6 +9,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../../data/user_repository.dart';
+import '../../widgets/glass_effect.dart';
 
 class IosSignInScreen extends StatefulWidget {
   const IosSignInScreen({super.key});
@@ -187,11 +188,8 @@ class _IosSignInScreenState extends State<IosSignInScreen> {
                       padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 32),
                       child: ConstrainedBox(
                         constraints: const BoxConstraints(maxWidth: 400),
-                        child: LiquidGlassContainer(
-                          config: LiquidGlassConfig(
-                            effect: CNGlassEffect.regular,
-                            cornerRadius: 20,
-                          ),
+                        child: GlassCard(
+                          radius: 20,
                           child: Padding(
                             padding: const EdgeInsets.all(32),
                             child: Column(
@@ -237,17 +235,11 @@ class _IosSignInScreenState extends State<IosSignInScreen> {
                                 ],
 
                                 // Google sign-in button
-                                SizedBox(
-                                  width: double.infinity,
-                                  child: CNButton(
-                                    label: _loading ? 'Signing in…' : 'Sign in with Google',
-                                    icon: CNSymbol('person.crop.circle.badge.checkmark', size: 18),
-                                    config: CNButtonConfig(
-                                      style: CNButtonStyle.glass,
-                                      imagePlacement: CNImagePlacement.leading,
-                                    ),
-                                    onPressed: _loading ? null : _signInWithGoogle,
-                                  ),
+                                GlassBtn(
+                                  label: _loading ? 'Signing in…' : 'Sign in with Google',
+                                  icon: Icons.account_circle_outlined,
+                                  primary: true,
+                                  onPressed: _loading ? null : _signInWithGoogle,
                                 ),
                                 const SizedBox(height: 20),
 
@@ -265,17 +257,10 @@ class _IosSignInScreenState extends State<IosSignInScreen> {
 
                                 // Email section
                                 if (!_emailMode)
-                                  SizedBox(
-                                    width: double.infinity,
-                                    child: CNButton(
-                                      label: 'Continue with Email',
-                                      icon: CNSymbol('envelope', size: 18),
-                                      config: CNButtonConfig(
-                                        style: CNButtonStyle.glass,
-                                        imagePlacement: CNImagePlacement.leading,
-                                      ),
-                                      onPressed: () => setState(() => _emailMode = true),
-                                    ),
+                                  GlassBtn(
+                                    label: 'Continue with Email',
+                                    icon: Icons.mail_outline,
+                                    onPressed: () => setState(() => _emailMode = true),
                                   )
                                 else ...[
                                   if (_isRegister) ...[
@@ -291,13 +276,10 @@ class _IosSignInScreenState extends State<IosSignInScreen> {
                                             color: CupertinoColors.secondaryLabel.resolveFrom(context), size: 18),
                                       )),
                                   const SizedBox(height: 16),
-                                  SizedBox(
-                                    width: double.infinity,
-                                    child: CNButton(
-                                      label: _loading ? 'Please wait…' : (_isRegister ? 'Create Account' : 'Sign In'),
-                                      config: CNButtonConfig(style: CNButtonStyle.glass),
-                                      onPressed: _loading ? null : _submitEmail,
-                                    ),
+                                  GlassBtn(
+                                    label: _loading ? 'Please wait…' : (_isRegister ? 'Create Account' : 'Sign In'),
+                                    primary: true,
+                                    onPressed: _loading ? null : _submitEmail,
                                   ),
                                   const SizedBox(height: 8),
                                   Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
