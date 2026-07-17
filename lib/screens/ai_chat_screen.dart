@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../services/claude_service.dart';
 import '../theme/gw_theme.dart';
+import '../widgets/gw_icon_button.dart';
 import '../widgets/gw_nav_bar.dart';
 
 class AiChatScreen extends StatefulWidget {
@@ -49,7 +50,7 @@ class _AiChatScreenState extends State<AiChatScreen> {
       backgroundColor: gw.bg,
       appBar: GwNavBar(
         title: 'GWC AI',
-        actions: [IconButton(icon: Icon(Icons.menu, color: gw.muted), onPressed: widget.onMenuClick)],
+        actions: [GwIconButton(icon: Icons.menu, color: gw.muted, onPressed: widget.onMenuClick)],
       ),
       body: Column(children: [
         Expanded(
@@ -138,16 +139,13 @@ class _AiChatScreenState extends State<AiChatScreen> {
               ),
             ),
             const SizedBox(width: 8),
-            GestureDetector(
+            GwGlassButton(
               onTap: _send,
-              child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                decoration: BoxDecoration(
-                    color: gw.green, borderRadius: BorderRadius.circular(10)),
-                child: Text('→', style: TextStyle(
-                    color: gw.isDark ? gw.bg : Colors.white,
-                    fontSize: 16, fontWeight: FontWeight.w700)),
-              ),
+              radius: 10,
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+              child: Text('→', style: TextStyle(
+                  color: gw.isDark ? gw.bg : Colors.white,
+                  fontSize: 16, fontWeight: FontWeight.w700)),
             ),
           ]),
         ),

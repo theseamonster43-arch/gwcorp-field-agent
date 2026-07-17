@@ -7,6 +7,7 @@ import '../data/models.dart';
 import '../data/direct_chat_repository.dart';
 import '../services/claude_service.dart';
 import '../theme/gw_theme.dart';
+import '../widgets/gw_icon_button.dart';
 import '../widgets/gw_nav_bar.dart';
 
 class DirectChatDetailScreen extends StatefulWidget {
@@ -262,12 +263,7 @@ class _DirectChatDetailScreenState extends State<DirectChatDetailScreen> {
                     style: TextStyle(color: gw.muted, fontSize: 12),
                     maxLines: 1, overflow: TextOverflow.ellipsis),
               ])),
-              IconButton(
-                icon: Icon(Icons.close, color: gw.muted, size: 18),
-                onPressed: () => setState(() => _replyingTo = null),
-                padding: EdgeInsets.zero,
-                constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
-              ),
+              GwIconButton(icon: Icons.close, color: gw.muted, size: 18, onPressed: () => setState(() => _replyingTo = null)),
             ]),
           ),
 
@@ -339,8 +335,9 @@ class _DirectChatDetailScreenState extends State<DirectChatDetailScreen> {
               ),
             ),
             const SizedBox(width: 8),
-            GestureDetector(
+            GwGlassButton(
               onTap: (_sending || _aiThinking) ? null : _send,
+              radius: 10,
               child: AnimatedContainer(
                 duration: const Duration(milliseconds: 150),
                 width: 42, height: 42,

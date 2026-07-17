@@ -2,6 +2,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import '../theme/gw_theme.dart';
+import '../widgets/gw_icon_button.dart';
 
 class DashboardScreen extends StatelessWidget {
   final VoidCallback onMenuClick;
@@ -42,13 +43,7 @@ class DashboardScreen extends StatelessWidget {
             padding: const EdgeInsets.symmetric(horizontal: 16),
             child: Row(children: [
               // Hamburger
-              GestureDetector(
-                onTap: onMenuClick,
-                child: Padding(
-                  padding: const EdgeInsets.only(right: 8),
-                  child: Icon(Icons.menu_rounded, color: gw.text, size: 22),
-                ),
-              ),
+              GwIconButton(icon: Icons.menu_rounded, color: gw.text, size: 22, onPressed: onMenuClick),
               // Status dot
               Container(
                 width: 6, height: 6,
@@ -85,18 +80,7 @@ class DashboardScreen extends StatelessWidget {
               ),
               const SizedBox(width: 10),
               // Settings
-              GestureDetector(
-                onTap: onSettingsClick,
-                child: Container(
-                  width: 34, height: 34,
-                  decoration: BoxDecoration(
-                    color: gw.bg2,
-                    borderRadius: BorderRadius.circular(10),
-                    border: Border.all(color: gw.border),
-                  ),
-                  child: Icon(Icons.settings_outlined, color: gw.muted, size: 17),
-                ),
-              ),
+              GwIconButton(icon: Icons.settings_outlined, color: gw.muted, size: 17, onPressed: onSettingsClick),
             ]),
           ),
         ),
