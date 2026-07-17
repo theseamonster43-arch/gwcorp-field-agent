@@ -1,7 +1,7 @@
 import 'package:cupertino_native_better/cupertino_native_better.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/cupertino.dart';
-import 'package:flutter/material.dart' show CircleAvatar;
+import 'package:flutter/material.dart' show CircleAvatar, Icons;
 import 'package:go_router/go_router.dart';
 
 class IosDashboardScreen extends StatelessWidget {
@@ -31,7 +31,7 @@ class IosDashboardScreen extends StatelessWidget {
         leading: CupertinoButton(
           padding: EdgeInsets.zero,
           onPressed: onMenuClick,
-          child: const Icon(CupertinoIcons.line_horizontal_3),
+          child: const Icon(Icons.menu_rounded),
         ),
         middle: Row(mainAxisSize: MainAxisSize.min, children: [
           Container(
@@ -73,7 +73,7 @@ class IosDashboardScreen extends StatelessWidget {
                 ),
                 child: const Padding(
                   padding: EdgeInsets.all(30),
-                  child: Icon(CupertinoIcons.qrcode_viewfinder,
+                  child: Icon(Icons.qr_code_scanner_outlined,
                       size: 90, color: Color(0xFF22C55E)),
                 ),
               ),

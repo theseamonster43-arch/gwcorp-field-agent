@@ -1,5 +1,6 @@
 import 'package:cupertino_native_better/cupertino_native_better.dart';
 import 'package:flutter/cupertino.dart';
+import 'package:flutter/material.dart' show Icons;
 import '../../services/claude_service.dart';
 
 class IosAiChatScreen extends StatefulWidget {
@@ -51,10 +52,10 @@ class _IosAiChatScreenState extends State<IosAiChatScreen> {
         leading: CupertinoButton(
           padding: EdgeInsets.zero,
           onPressed: widget.onMenuClick,
-          child: const Icon(CupertinoIcons.line_horizontal_3),
+          child: const Icon(Icons.menu),
         ),
         middle: Row(mainAxisSize: MainAxisSize.min, children: const [
-          Icon(CupertinoIcons.sparkles, size: 16, color: Color(0xFF22C55E)),
+          Icon(Icons.auto_awesome, size: 16, color: Color(0xFF22C55E)),
           SizedBox(width: 6),
           Text('GWC AI'),
         ]),
@@ -73,7 +74,7 @@ class _IosAiChatScreenState extends State<IosAiChatScreen> {
                     child: Padding(
                       padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 24),
                       child: Column(mainAxisSize: MainAxisSize.min, children: [
-                        const Icon(CupertinoIcons.sparkles,
+                        const Icon(Icons.auto_awesome,
                             size: 44, color: Color(0xFF22C55E)),
                         const SizedBox(height: 14),
                         Text('GWCORP AI Assistant',
@@ -124,7 +125,7 @@ class _IosAiChatScreenState extends State<IosAiChatScreen> {
                                 shape: BoxShape.circle,
                                 color: const Color(0xFF22C55E).withOpacity(0.15),
                               ),
-                              child: const Icon(CupertinoIcons.sparkles,
+                              child: const Icon(Icons.auto_awesome,
                                   size: 14, color: Color(0xFF22C55E)),
                             ),
                             const SizedBox(width: 8),

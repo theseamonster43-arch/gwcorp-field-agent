@@ -1,7 +1,7 @@
 import 'package:cupertino_native_better/cupertino_native_better.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/cupertino.dart';
-import 'package:flutter/material.dart' show ThemeMode, CircleAvatar;
+import 'package:flutter/material.dart' show ThemeMode, CircleAvatar, Icons;
 import 'package:go_router/go_router.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import '../../data/history_repository.dart';
@@ -166,7 +166,7 @@ class _IosAccountScreenState extends State<IosAccountScreen> {
             header: const Text('PREFERENCES'),
             children: [
               CupertinoListTile.notched(
-                leading: const Icon(CupertinoIcons.moon_fill),
+                leading: const Icon(Icons.dark_mode_outlined),
                 title: const Text('Dark Mode'),
                 trailing: CNSwitch(
                   value: _isDark,
@@ -182,14 +182,14 @@ class _IosAccountScreenState extends State<IosAccountScreen> {
             header: const Text('DATA'),
             children: [
               CupertinoListTile.notched(
-                leading: const Icon(CupertinoIcons.delete_simple),
+                leading: const Icon(Icons.delete_sweep_outlined),
                 title: const Text('Reset Scan History'),
                 additionalInfo: const Text(''),
                 trailing: const CupertinoListTileChevron(),
                 onTap: _confirmResetScans,
               ),
               CupertinoListTile.notched(
-                leading: const Icon(CupertinoIcons.square_arrow_right,
+                leading: const Icon(Icons.logout_rounded,
                     color: CupertinoColors.destructiveRed),
                 title: const Text('Log Out',
                     style: TextStyle(color: CupertinoColors.destructiveRed)),

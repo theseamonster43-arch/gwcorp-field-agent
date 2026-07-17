@@ -239,7 +239,7 @@ class _IosSignInScreenState extends State<IosSignInScreen> {
                                     color: const Color(0xFF22C55E).withOpacity(0.15),
                                     border: Border.all(color: const Color(0xFF22C55E).withOpacity(0.4), width: 1.5),
                                   ),
-                                  child: const Icon(CupertinoIcons.arrow_2_circlepath, color: Color(0xFF22C55E), size: 36),
+                                  child: const Icon(Icons.recycling, color: Color(0xFF22C55E), size: 36),
                                 ),
                                 const SizedBox(height: 18),
                                 Text('GWCORP',
@@ -308,15 +308,15 @@ class _IosSignInScreenState extends State<IosSignInScreen> {
                                   )
                                 else ...[
                                   if (_isRegister) ...[
-                                    _field('Display Name', CupertinoIcons.person, _nameCtrl, false),
+                                    _field('Display Name', Icons.person_outline, _nameCtrl, false),
                                     const SizedBox(height: 10),
                                   ],
-                                  _field('Email', CupertinoIcons.mail, _emailCtrl, false),
+                                  _field('Email', Icons.email_outlined, _emailCtrl, false),
                                   const SizedBox(height: 10),
-                                  _field('Password', CupertinoIcons.lock, _passCtrl, _obscure,
+                                  _field('Password', Icons.lock_outline, _passCtrl, _obscure,
                                       suffix: GestureDetector(
                                         onTap: () => setState(() => _obscure = !_obscure),
-                                        child: Icon(_obscure ? CupertinoIcons.eye : CupertinoIcons.eye_slash,
+                                        child: Icon(_obscure ? Icons.visibility_outlined : Icons.visibility_off_outlined,
                                             color: CupertinoColors.secondaryLabel.resolveFrom(context), size: 18),
                                       )),
                                   const SizedBox(height: 16),

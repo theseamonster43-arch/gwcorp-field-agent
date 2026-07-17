@@ -2,7 +2,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:cupertino_native_better/cupertino_native_better.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/cupertino.dart';
-import 'package:flutter/material.dart' show CircleAvatar;
+import 'package:flutter/material.dart' show CircleAvatar, Icons;
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 import '../../data/direct_chat_repository.dart';
@@ -28,7 +28,7 @@ class _IosChatsListState extends State<IosChatsList> {
             ? CupertinoButton(
                 padding: EdgeInsets.zero,
                 onPressed: () => context.push('/main/newchat'),
-                child: const Icon(CupertinoIcons.square_pencil),
+                child: const Icon(Icons.add),
               )
             : null,
       ),
@@ -82,7 +82,7 @@ class _IosDmListState extends State<_IosDmList> {
             if (_chats.isEmpty && newPeople.isEmpty) {
               return Center(
                 child: Column(mainAxisSize: MainAxisSize.min, children: [
-                  const Icon(CupertinoIcons.chat_bubble_2, size: 40,
+                  const Icon(Icons.chat_bubble_outline, size: 40,
                       color: CupertinoColors.systemGrey),
                   const SizedBox(height: 12),
                   Text('No contacts yet',
@@ -182,7 +182,7 @@ class _ChatRow extends StatelessWidget {
                     fontSize: 11)),
           ],
           const SizedBox(width: 4),
-          Icon(CupertinoIcons.chevron_right,
+          Icon(Icons.chevron_right,
               size: 14, color: CupertinoColors.tertiaryLabel.resolveFrom(context)),
         ]),
       ),
@@ -243,7 +243,7 @@ class _PersonRow extends StatelessWidget {
                     fontSize: 13),
                 maxLines: 1, overflow: TextOverflow.ellipsis),
           ])),
-          Icon(CupertinoIcons.chat_bubble,
+          Icon(Icons.chat_bubble_outline,
               size: 16, color: CupertinoColors.tertiaryLabel.resolveFrom(context)),
         ]),
       ),
