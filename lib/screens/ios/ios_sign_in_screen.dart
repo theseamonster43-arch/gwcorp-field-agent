@@ -163,17 +163,54 @@ class _IosSignInScreenState extends State<IosSignInScreen> {
       backgroundColor: CupertinoColors.systemBackground.resolveFrom(context),
       child: Stack(
         children: [
-          // Gradient background for glass to blur against
+          // Rich background so BackdropFilter glass blur is visible
           Positioned.fill(
             child: Container(
               decoration: BoxDecoration(
-                gradient: RadialGradient(
-                  center: const Alignment(0, -0.4),
-                  radius: 1.1,
+                gradient: LinearGradient(
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
                   colors: isDark
-                      ? [const Color(0xFF0D2E1A), const Color(0xFF080C0A), const Color(0xFF040806)]
-                      : [const Color(0xFFD1FAE5), const Color(0xFFF0FDF4), const Color(0xFFFFFFFF)],
+                      ? [const Color(0xFF0A1F10), const Color(0xFF071409), const Color(0xFF0D1A0F)]
+                      : [const Color(0xFFB8F5D4), const Color(0xFFE8FAF0), const Color(0xFFD4F5E3)],
                 ),
+              ),
+            ),
+          ),
+          // Decorative blobs that give the blur something rich to show
+          Positioned(top: -60, left: -40,
+            child: Container(
+              width: 260, height: 260,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: const Color(0xFF22C55E).withOpacity(isDark ? 0.30 : 0.45),
+              ),
+            ),
+          ),
+          Positioned(top: 120, right: -80,
+            child: Container(
+              width: 200, height: 200,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: const Color(0xFF16A34A).withOpacity(isDark ? 0.22 : 0.35),
+              ),
+            ),
+          ),
+          Positioned(bottom: 80, left: 20,
+            child: Container(
+              width: 150, height: 150,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: const Color(0xFF4ADE80).withOpacity(isDark ? 0.18 : 0.30),
+              ),
+            ),
+          ),
+          Positioned(bottom: -40, right: 30,
+            child: Container(
+              width: 180, height: 180,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: const Color(0xFF86EFAC).withOpacity(isDark ? 0.15 : 0.25),
               ),
             ),
           ),

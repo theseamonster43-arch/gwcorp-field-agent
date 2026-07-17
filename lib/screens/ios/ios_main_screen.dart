@@ -65,6 +65,7 @@ class _IosMainScreenState extends State<IosMainScreen> {
   Widget build(BuildContext context) {
     final gw = GwTheme.of(context);
     return Scaffold(
+      extendBody: true,
       body: Stack(children: [
         IndexedStack(
           index: _tab,
