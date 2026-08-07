@@ -19,15 +19,25 @@ class IosMainScreen extends StatefulWidget {
   State<IosMainScreen> createState() => _IosMainScreenState();
 }
 
-class _IosMainScreenState extends State<IosMainScreen> {
+class _IosMainScreenState extends State<IosMainScreen>
+    with SingleTickerProviderStateMixin {
   int _tab = 0;
   List<ScanSession> _sessions = [];
   StreamSubscription<List<ScanSession>>? _sessionSub;
   StreamSubscription<User?>? _authSub;
 
+  /// Drives the same fade-and-rise the web app plays when a view is swapped
+  /// (the `gwFade` keyframes in field-agent.html).
+  late final AnimationController _swap;
+
   @override
   void initState() {
     super.initState();
+    _swap = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 240),
+      value: 1, // first paint is already settled
+    );
     _authSub = FirebaseAuth.instance.authStateChanges().listen((_) {
       if (mounted) setState(() {});
     });
@@ -38,9 +48,16 @@ class _IosMainScreenState extends State<IosMainScreen> {
 
   @override
   void dispose() {
+    _swap.dispose();
     _sessionSub?.cancel();
     _authSub?.cancel();
     super.dispose();
+  }
+
+  void _setTab(int i) {
+    if (i == _tab) return;
+    setState(() => _tab = i);
+    _swap.forward(from: 0);
   }
 
   void _goTab(int i) {
@@ -49,7 +66,7 @@ class _IosMainScreenState extends State<IosMainScreen> {
       _openMore();
       return;
     }
-    if (i != _tab) setState(() => _tab = i);
+    _setTab(i);
   }
 
   Future<void> _openMore() async {
@@ -122,7 +139,7 @@ class _IosMainScreenState extends State<IosMainScreen> {
                 detail: 'Profile, preferences and data',
                 onTap: () {
                   Navigator.of(sheetContext).pop();
-                  setState(() => _tab = 3);
+                  _setTab(3);
                 },
               ),
             ],
@@ -198,24 +215,39 @@ class _IosMainScreenState extends State<IosMainScreen> {
       body: GwScreenBg(
         child: Stack(children: [
           Positioned.fill(
-            child: IndexedStack(
-              index: _tab,
-              children: [
-                IosHomeScreen(
-                  sessions: _sessions,
-                  onNewScan: () => context.push('/main/batch'),
-                  onSeeAllScans: () => _goTab(1),
-                  onOpenAnalytics: () => _goTab(2),
-                  onOpenChats: () => context.push('/main/chats'),
-                  onOpenAi: () => context.push('/main/ai'),
-                ),
-                IosScansScreen(
-                  sessions: _sessions,
-                  onNewScan: () => context.push('/main/batch'),
-                ),
-                IosAnalyticsScreen(sessions: _sessions),
-                const IosAccountScreen(),
-              ],
+            child: AnimatedBuilder(
+              animation: _swap,
+              builder: (_, child) {
+                final t = Curves.easeOut.transform(_swap.value);
+                return Opacity(
+                  opacity: t,
+                  child: Transform.translate(
+                    offset: Offset(0, 6 * (1 - t)),
+                    child: child,
+                  ),
+                );
+              },
+              // Built once and reused across frames — an IndexedStack keeps
+              // every tab alive, so scroll positions survive the swap.
+              child: IndexedStack(
+                index: _tab,
+                children: [
+                  IosHomeScreen(
+                    sessions: _sessions,
+                    onNewScan: () => context.push('/main/batch'),
+                    onSeeAllScans: () => _goTab(1),
+                    onOpenAnalytics: () => _goTab(2),
+                    onOpenChats: () => context.push('/main/chats'),
+                    onOpenAi: () => context.push('/main/ai'),
+                  ),
+                  IosScansScreen(
+                    sessions: _sessions,
+                    onNewScan: () => context.push('/main/batch'),
+                  ),
+                  IosAnalyticsScreen(sessions: _sessions),
+                  const IosAccountScreen(),
+                ],
+              ),
             ),
           ),
           Positioned(
