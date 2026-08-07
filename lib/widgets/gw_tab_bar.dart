@@ -20,10 +20,13 @@ class GwTabBar extends StatelessWidget {
 
   static const double barHeight = 64;
   static const double fabSize = 60;
-  static const double topRadius = 26;
+  static const double topRadius = 14;
 
   /// How far the centre button pokes above the bar.
   static const double _raise = 15;
+
+  /// Slack above the centre button for its grow-on-press animation.
+  static const double _pressHeadroom = 6;
 
   @override
   Widget build(BuildContext context) {
@@ -32,8 +35,11 @@ class GwTabBar extends StatelessWidget {
     final barBox = barHeight + bottomInset;
 
     return SizedBox(
-      height: barBox + _raise,
+      // + _pressHeadroom so the centre button can scale up on press without
+      // the enclosing Stack clipping its top edge.
+      height: barBox + _raise + _pressHeadroom,
       child: Stack(
+        clipBehavior: Clip.none,
         children: [
           Positioned(
             left: 0,
@@ -60,13 +66,13 @@ class GwTabBar extends StatelessWidget {
                     ),
                   ),
                   child: Row(children: [
-                    _tab(gw, 0, Icons.home_rounded, Icons.home_outlined, 'Home'),
+                    _tab(gw, 0, Icons.home_rounded, Icons.home_outlined),
                     _tab(gw, 1, Icons.qr_code_scanner_rounded,
-                        Icons.qr_code_scanner_outlined, 'Scans'),
+                        Icons.qr_code_scanner_outlined),
                     const SizedBox(width: fabSize + 20),
-                    _tab(gw, 2, Icons.insights_rounded, Icons.insights_outlined, 'Analytics'),
+                    _tab(gw, 2, Icons.insights_rounded, Icons.insights_outlined),
                     _tab(gw, 3, Icons.account_circle_rounded,
-                        Icons.account_circle_outlined, 'Account'),
+                        Icons.account_circle_outlined),
                   ]),
                 ),
               ),
@@ -85,7 +91,7 @@ class GwTabBar extends StatelessWidget {
     );
   }
 
-  Widget _tab(GwColors gw, int index, IconData active, IconData idle, String label) {
+  Widget _tab(GwColors gw, int index, IconData active, IconData idle) {
     final selected = currentIndex == index;
     return Expanded(
       child: GestureDetector(
@@ -99,41 +105,18 @@ class GwTabBar extends StatelessWidget {
             // easeOutBack overshoots past 1, which is what gives the little
             // pop — clamp anything that must stay in range.
             final c = t.clamp(0.0, 1.0);
-            final tint = Color.lerp(gw.muted, gw.green, c)!;
-            return Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Transform.translate(
-                  offset: Offset(0, -3 * t),
-                  child: Transform.scale(
-                    scale: 1 + .16 * t,
-                    child: Icon(selected ? active : idle, size: 21, color: tint),
+            return Center(
+              child: Transform.translate(
+                offset: Offset(0, -2 * t),
+                child: Transform.scale(
+                  scale: 1 + .18 * t,
+                  child: Icon(
+                    selected ? active : idle,
+                    size: 26,
+                    color: Color.lerp(gw.muted, gw.green, c),
                   ),
                 ),
-                const SizedBox(height: 3),
-                Text(
-                  label,
-                  style: TextStyle(
-                    fontSize: 9.5,
-                    height: 1,
-                    fontWeight: FontWeight.lerp(
-                      FontWeight.w600,
-                      FontWeight.w800,
-                      c,
-                    ),
-                    color: tint,
-                  ),
-                ),
-                const SizedBox(height: 3),
-                Container(
-                  width: 4 * c,
-                  height: 4 * c,
-                  decoration: BoxDecoration(
-                    color: gw.green.withOpacity(c),
-                    shape: BoxShape.circle,
-                  ),
-                ),
-              ],
+              ),
             );
           },
         ),
@@ -163,9 +146,9 @@ class _CenterButtonState extends State<_CenterButton> {
       onTapCancel: () => setState(() => _down = false),
       onTap: widget.onTap,
       child: AnimatedScale(
-        scale: _down ? 0.92 : 1.0,
-        duration: const Duration(milliseconds: 130),
-        curve: Curves.easeOut,
+        scale: _down ? 1.12 : 1.0,
+        duration: const Duration(milliseconds: 140),
+        curve: Curves.easeOutBack,
         child: Container(
           width: GwTabBar.fabSize,
           height: GwTabBar.fabSize,
