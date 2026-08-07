@@ -1,13 +1,9 @@
 import 'dart:io' show Platform;
-import 'package:google_fonts/google_fonts.dart';
 import 'package:firebase_core/firebase_core.dart';
-import 'package:firebase_auth/firebase_auth.dart';
-import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
 import 'package:window_manager/window_manager.dart';
-import 'package:cupertino_native_better/cupertino_native_better.dart';
 import 'firebase_options.dart';
 import 'theme/gw_theme.dart';
 import 'utils/app_preferences.dart';
@@ -16,6 +12,8 @@ import 'screens/sign_in_screen.dart';
 import 'screens/main_screen.dart';
 import 'screens/ios/ios_sign_in_screen.dart';
 import 'screens/ios/ios_main_screen.dart';
+import 'screens/ios/ios_chats_screen.dart';
+import 'screens/ios/ios_ai_chat_screen.dart';
 import 'screens/session_detail_screen.dart';
 import 'screens/new_direct_chat_screen.dart';
 import 'screens/direct_chat_detail_screen.dart';
@@ -70,7 +68,6 @@ Page<void> _slidePage(GoRouterState state, Widget child) => CustomTransitionPage
 
 final _router = GoRouter(
   initialLocation: '/splash',
-  observers: [CNTabBarRouteObserver()],
   routes: [
     GoRoute(path: '/splash',  pageBuilder: (_, s) => _fadePage(s, const SplashScreen())),
     GoRoute(path: '/signin',  pageBuilder: (_, s) => _fadePage(s, Platform.isIOS ? const IosSignInScreen() : const SignInScreen())),
@@ -96,6 +93,8 @@ final _router = GoRouter(
             onBack: (ctx) => ctx.pop(),
           )),
     ),
+    GoRoute(path: '/main/chats',   pageBuilder: (_, s) => _slidePage(s, const IosChatsList())),
+    GoRoute(path: '/main/ai',      pageBuilder: (_, s) => _slidePage(s, const IosAiChatScreen())),
     GoRoute(path: '/main/web',     pageBuilder: (_, s) => _slidePage(s, const WebViewScreen())),
     GoRoute(path: '/main/batch',   pageBuilder: (_, s) => _slidePage(s, const BatchSetupScreen())),
     GoRoute(path: '/main/camera',  pageBuilder: (_, s) => _slidePage(s, const CameraScreen())),
@@ -160,44 +159,15 @@ class _GwAppState extends State<GwApp> with WidgetsBindingObserver {
 
   @override
   Widget build(BuildContext context) {
-    final currentBrightness = _gw.isDark ? Brightness.dark : Brightness.light;
-
     return GwTheme(
       colors: _gw,
-      child: CupertinoTheme(
-        data: CupertinoThemeData(
-          brightness: currentBrightness,
-          primaryColor: const Color(0xFF22C55E),
-          textTheme: CupertinoTextThemeData(
-            textStyle: GoogleFonts.dmSans(
-              fontSize: 17,
-              color: _gw.isDark ? CupertinoColors.white : CupertinoColors.black,
-            ),
-            actionTextStyle: GoogleFonts.dmSans(
-              fontSize: 17,
-              color: const Color(0xFF22C55E),
-            ),
-            navTitleTextStyle: GoogleFonts.dmSans(
-              fontSize: 17,
-              fontWeight: FontWeight.w600,
-              color: _gw.isDark ? CupertinoColors.white : CupertinoColors.black,
-            ),
-            navLargeTitleTextStyle: GoogleFonts.dmSans(
-              fontSize: 34,
-              fontWeight: FontWeight.w700,
-              color: _gw.isDark ? CupertinoColors.white : CupertinoColors.black,
-            ),
-            tabLabelTextStyle: GoogleFonts.dmSans(fontSize: 10),
-          ),
-        ),
-        child: MaterialApp.router(
-          title: 'GWCORP Field Agent',
-          debugShowCheckedModeBanner: false,
-          theme:     buildMaterialTheme(GwColors.light).copyWith(textTheme: GoogleFonts.dmSansTextTheme(buildMaterialTheme(GwColors.light).textTheme)),
-          darkTheme: buildMaterialTheme(GwColors.dark).copyWith(textTheme: GoogleFonts.dmSansTextTheme(buildMaterialTheme(GwColors.dark).textTheme)),
-          themeMode: _gw.isDark ? ThemeMode.dark : ThemeMode.light,
-          routerConfig: _router,
-        ),
+      child: MaterialApp.router(
+        title: 'GWCORP Field Agent',
+        debugShowCheckedModeBanner: false,
+        theme:     buildMaterialTheme(GwColors.light),
+        darkTheme: buildMaterialTheme(GwColors.dark),
+        themeMode: _gw.isDark ? ThemeMode.dark : ThemeMode.light,
+        routerConfig: _router,
       ),
     );
   }

@@ -1,6 +1,6 @@
 import 'dart:io';
-import 'package:cupertino_native_better/cupertino_native_better.dart';
 import 'package:flutter/material.dart';
+import 'gw_glass.dart';
 
 class GwIconButton extends StatelessWidget {
   final IconData icon;
@@ -13,21 +13,7 @@ class GwIconButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     if (Platform.isIOS) {
-      return LiquidGlassContainer(
-        config: LiquidGlassConfig(
-          effect: CNGlassEffect.regular,
-          shape: CNGlassEffectShape.capsule,
-          cornerRadius: 10,
-          interactive: true,
-        ),
-        child: GestureDetector(
-          onTap: onPressed,
-          child: Padding(
-            padding: const EdgeInsets.all(8),
-            child: Icon(icon, size: size, color: color),
-          ),
-        ),
-      );
+      return GwGlassIcon(icon: icon, onTap: onPressed, size: size, color: color);
     }
     return IconButton(icon: Icon(icon, color: color, size: size), onPressed: onPressed);
   }
@@ -43,21 +29,10 @@ class GwGlassButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final inner = padding != null ? Padding(padding: padding!, child: child) : child;
     if (Platform.isIOS) {
-      return LiquidGlassContainer(
-        config: LiquidGlassConfig(
-          effect: CNGlassEffect.regular,
-          shape: CNGlassEffectShape.rect,
-          cornerRadius: radius,
-          interactive: true,
-        ),
-        child: GestureDetector(
-          onTap: onTap,
-          child: inner,
-        ),
-      );
+      return GwGlass(radius: radius, padding: padding, onTap: onTap, child: child);
     }
+    final inner = padding != null ? Padding(padding: padding!, child: child) : child;
     return GestureDetector(onTap: onTap, child: inner);
   }
 }

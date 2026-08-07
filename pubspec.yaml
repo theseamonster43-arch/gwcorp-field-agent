@@ -40,7 +40,6 @@ dependencies:
   google_fonts: ^6.2.1
   window_manager: ^0.4.3
   url_launcher: ^6.3.2
-  cupertino_native_better: ^1.5.2
 
 dev_dependencies:
   flutter_test:
