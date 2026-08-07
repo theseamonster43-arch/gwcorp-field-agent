@@ -1,5 +1,4 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:flutter/foundation.dart';
 import 'models.dart';
 
 class DirectChatRepository {
@@ -33,8 +32,7 @@ class DirectChatRepository {
       .map((s) => s.docs
           .map((d) {
             try {
-              return DirectMessage.fromMap(
-                  d.data() as Map<String, dynamic>, d.id);
+              return DirectMessage.fromMap(d.data(), d.id);
             } catch (_) {
               return null;
             }
@@ -86,7 +84,7 @@ class DirectChatRepository {
     final ref = _chats.doc(chatId).collection('messages').doc(msgId);
     await _db.runTransaction((t) async {
       final snap = await t.get(ref);
-      final data = snap.data() as Map<String, dynamic>? ?? {};
+      final data = snap.data() ?? {};
       final reactions = Map<String, dynamic>.from(data['reactions'] as Map? ?? {});
       final users = List<String>.from(reactions[emoji] as List? ?? []);
       if (users.contains(userEmail)) {

@@ -51,14 +51,12 @@ class _ResultsScreenState extends State<ResultsScreen> {
     // Upload each scanned image to Cloudinary
     final imageUrls  = <String>[];
     final total      = BatchState.images.length;
-    int   uploaded   = 0;
     int   failed     = 0;
     for (int i = 0; i < total; i++) {
       if (mounted) setState(() => _saveStatus = 'Uploading photo ${i + 1} / $total…');
       final url = await ImageUploadService.upload(BatchState.images[i]);
       if (url != null) {
         imageUrls.add(url);
-        uploaded++;
       } else {
         // Keep slot so photoIndex still lines up — use empty string as placeholder
         imageUrls.add('');
@@ -268,7 +266,7 @@ class _ResultCard extends StatelessWidget {
             child: ClipRRect(
               borderRadius: BorderRadius.circular(8),
               child: hasPhoto
-                  ? Image.file(File(localPaths[idx!]), fit: BoxFit.cover,
+                  ? Image.file(File(localPaths[idx]), fit: BoxFit.cover,
                       errorBuilder: (_, __, ___) => Icon(
                         Icons.image_not_supported_outlined, color: gw.muted, size: 22))
                   : Icon(isHazard ? Icons.warning_amber_outlined : Icons.recycling,
