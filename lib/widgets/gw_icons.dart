@@ -45,7 +45,9 @@ class GwIcons {
       'M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z M9 10a3 3 0 1 0 6 0a3 3 0 1 0-6 0';
   static const user =
       'M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2 M8 7a4 4 0 1 0 8 0a4 4 0 1 0-8 0';
-  static const plus = 'M12 5v14 M5 12h14';
+  // Tighter than the Feather original (which spans 5..19) so it reads at the
+  // same optical weight as the icons around it rather than looking oversized.
+  static const plus = 'M12 6.5v11 M6.5 12h11';
   static const menu = 'M3 12h18 M3 6h18 M3 18h18';
   static const sparkle = 'M12 3l1.9 5.1L19 10l-5.1 1.9L12 17l-1.9-5.1L5 10l5.1-1.9L12 3z '
       'M19 16v4 M17 18h4';
@@ -267,7 +269,9 @@ class GwIcon extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final c = color ?? IconTheme.of(context).color ?? const Color(0xFFFFFFFF);
-    final sw = strokeWidth ?? (size <= 16 ? 2.2 : size >= 34 ? 1.6 : 2.0);
+    // Stroked outlines read heavier than the filled Material glyphs they
+    // replaced, so the defaults sit a little thinner than Feather's 2.0.
+    final sw = strokeWidth ?? (size <= 16 ? 2.0 : size >= 34 ? 1.5 : 1.85);
     return SizedBox(
       width: size,
       height: size,

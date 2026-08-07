@@ -112,9 +112,9 @@ class GwTabBar extends StatelessWidget {
                   scale: 1 + .18 * t,
                   child: GwIcon(
                     icon,
-                    size: 25,
+                    size: 23,
                     color: Color.lerp(gw.muted, gw.green, c),
-                    strokeWidth: 2.0 + .35 * c,
+                    strokeWidth: 1.9 + .35 * c,
                   ),
                 ),
               ),
@@ -179,7 +179,7 @@ class _CenterButtonState extends State<_CenterButton> {
             ],
             border: Border.all(color: Colors.white.withOpacity(.32), width: 1.4),
           ),
-          child: const GwIcon(GwIcons.plus, size: 28, color: Colors.white, strokeWidth: 2.6),
+          child: const GwIcon(GwIcons.plus, size: 25, color: Colors.white, strokeWidth: 2.3),
         ),
       ),
     );
