@@ -1,6 +1,7 @@
 import 'dart:ui';
 import 'package:flutter/material.dart';
 import '../theme/gw_theme.dart';
+import 'gw_icons.dart';
 
 /// Bottom bar: full width, rounded at the top corners only, with a gradient
 /// "new scan" button seated in the middle. Tab indices are 0=Home, 1=Scans,
@@ -66,13 +67,12 @@ class GwTabBar extends StatelessWidget {
                     ),
                   ),
                   child: Row(children: [
-                    _tab(gw, 0, Icons.home_rounded, Icons.home_outlined),
-                    _tab(gw, 1, Icons.qr_code_scanner_rounded,
-                        Icons.qr_code_scanner_outlined),
+                    _tab(gw, 0, GwIcons.home),
+                    _tab(gw, 1, GwIcons.scan),
                     const SizedBox(width: fabSize + 20),
-                    _tab(gw, 2, Icons.insights_rounded, Icons.insights_outlined),
+                    _tab(gw, 2, GwIcons.chart),
                     // Slot 3 is the "more" menu, not a screen of its own.
-                    _tab(gw, 3, Icons.menu_rounded, Icons.menu),
+                    _tab(gw, 3, GwIcons.menu),
                   ]),
                 ),
               ),
@@ -91,7 +91,7 @@ class GwTabBar extends StatelessWidget {
     );
   }
 
-  Widget _tab(GwColors gw, int index, IconData active, IconData idle) {
+  Widget _tab(GwColors gw, int index, String icon) {
     final selected = currentIndex == index;
     return Expanded(
       child: GestureDetector(
@@ -110,10 +110,11 @@ class GwTabBar extends StatelessWidget {
                 offset: Offset(0, -2 * t),
                 child: Transform.scale(
                   scale: 1 + .18 * t,
-                  child: Icon(
-                    selected ? active : idle,
-                    size: 26,
+                  child: GwIcon(
+                    icon,
+                    size: 25,
                     color: Color.lerp(gw.muted, gw.green, c),
+                    strokeWidth: 2.0 + .35 * c,
                   ),
                 ),
               ),
@@ -178,7 +179,7 @@ class _CenterButtonState extends State<_CenterButton> {
             ],
             border: Border.all(color: Colors.white.withOpacity(.32), width: 1.4),
           ),
-          child: const Icon(Icons.add_rounded, size: 30, color: Colors.white),
+          child: const GwIcon(GwIcons.plus, size: 28, color: Colors.white, strokeWidth: 2.6),
         ),
       ),
     );

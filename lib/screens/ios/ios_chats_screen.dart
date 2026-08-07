@@ -7,6 +7,7 @@ import '../../data/direct_chat_repository.dart';
 import '../../data/models.dart';
 import '../../data/user_repository.dart';
 import '../../theme/gw_theme.dart';
+import '../../widgets/gw_icons.dart';
 import '../../widgets/gw_glass.dart';
 
 class IosChatsList extends StatefulWidget {
@@ -58,7 +59,7 @@ class _IosChatsListState extends State<IosChatsList> {
               padding: const EdgeInsets.fromLTRB(8, 4, 16, 0),
               child: Row(children: [
                 GwGlassIcon(
-                  icon: Icons.arrow_back_ios_new,
+                  icon: GwIcons.chevronLeft,
                   size: 16,
                   onTap: () => Navigator.of(context).pop(),
                 ),
@@ -76,7 +77,7 @@ class _IosChatsListState extends State<IosChatsList> {
                 ),
                 if (_seg == 0)
                   GwGlassIcon(
-                    icon: Icons.add,
+                    icon: GwIcons.plus,
                     onTap: () => context.push('/main/newchat'),
                   ),
               ]),
@@ -137,7 +138,7 @@ class _IosDmListState extends State<_IosDmList> {
             if (_chats.isEmpty && newPeople.isEmpty) {
               return Center(
                 child: Column(mainAxisSize: MainAxisSize.min, children: [
-                  Icon(Icons.forum_outlined, size: 40, color: gw.muted),
+                  GwIcon(GwIcons.chat, size: 40, color: gw.muted),
                   const SizedBox(height: 12),
                   Text(
                     'No contacts yet',
@@ -249,7 +250,7 @@ class _ChatRow extends StatelessWidget {
           Text(time, style: TextStyle(color: gw.muted, fontSize: 10.5)),
         ],
         const SizedBox(width: 4),
-        Icon(Icons.chevron_right, size: 15, color: gw.muted),
+        GwIcon(GwIcons.chevronRight, size: 15, color: gw.muted),
       ]),
     );
   }
@@ -320,7 +321,7 @@ class _PersonRow extends StatelessWidget {
           ]),
         ),
         const SizedBox(width: 8),
-        Icon(Icons.chat_bubble_outline, size: 16, color: gw.muted),
+        GwIcon(GwIcons.chat, size: 16, color: gw.muted),
       ]),
     );
   }
@@ -454,7 +455,7 @@ class _IosCommunityChatState extends State<_IosCommunityChat> {
                     ),
                   ],
                 ),
-                child: const Icon(Icons.arrow_upward_rounded,
+                child: const GwIcon(GwIcons.arrowUp,
                     size: 20, color: Colors.white),
               ),
             ),

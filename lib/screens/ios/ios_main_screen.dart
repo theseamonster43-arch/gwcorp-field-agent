@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import '../../data/history_repository.dart';
 import '../../data/models.dart';
 import '../../theme/gw_theme.dart';
+import '../../widgets/gw_icons.dart';
 import '../../widgets/gw_glass.dart';
 import '../../widgets/gw_tab_bar.dart';
 import 'ios_home_screen.dart';
@@ -85,7 +86,7 @@ class _IosMainScreenState extends State<IosMainScreen> {
               const SizedBox(height: 16),
               _moreRow(
                 gw,
-                icon: Icons.forum_outlined,
+                icon: GwIcons.chat,
                 label: 'Chat',
                 detail: 'Messages and team community',
                 onTap: () {
@@ -96,7 +97,7 @@ class _IosMainScreenState extends State<IosMainScreen> {
               const SizedBox(height: 8),
               _moreRow(
                 gw,
-                icon: Icons.auto_awesome,
+                icon: GwIcons.sparkle,
                 label: 'AI Assistant',
                 detail: 'Ask about waste and safety',
                 onTap: () {
@@ -107,7 +108,7 @@ class _IosMainScreenState extends State<IosMainScreen> {
               const SizedBox(height: 8),
               _moreRow(
                 gw,
-                icon: Icons.satellite,
+                icon: GwIcons.satellite,
                 label: 'Satellite',
                 detail: 'Coming soon',
                 enabled: false,
@@ -116,7 +117,7 @@ class _IosMainScreenState extends State<IosMainScreen> {
               const SizedBox(height: 8),
               _moreRow(
                 gw,
-                icon: Icons.account_circle_outlined,
+                icon: GwIcons.user,
                 label: 'Account',
                 detail: 'Profile, preferences and data',
                 onTap: () {
@@ -133,7 +134,7 @@ class _IosMainScreenState extends State<IosMainScreen> {
 
   Widget _moreRow(
     GwColors gw, {
-    required IconData icon,
+    required String icon,
     required String label,
     required String detail,
     required VoidCallback onTap,
@@ -153,7 +154,7 @@ class _IosMainScreenState extends State<IosMainScreen> {
             color: gw.green.withOpacity(.16),
             borderRadius: BorderRadius.circular(13),
           ),
-          child: Icon(icon, size: 20, color: gw.green),
+          child: GwIcon(icon, size: 20, color: gw.green),
         ),
         const SizedBox(width: 13),
         Expanded(
@@ -179,8 +180,8 @@ class _IosMainScreenState extends State<IosMainScreen> {
             ],
           ),
         ),
-        Icon(
-          enabled ? Icons.chevron_right : Icons.lock_outline,
+        GwIcon(
+          enabled ? GwIcons.chevronRight : GwIcons.lock,
           size: 17,
           color: gw.muted,
         ),

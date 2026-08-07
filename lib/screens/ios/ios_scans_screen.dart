@@ -4,6 +4,7 @@ import 'package:intl/intl.dart';
 
 import '../../data/models.dart';
 import '../../theme/gw_theme.dart';
+import '../../widgets/gw_icons.dart';
 import '../../widgets/gw_glass.dart';
 
 /// Scans tab — the full scan history. Replaces the old slide-out drawer.
@@ -98,7 +99,7 @@ class _IosScansScreenState extends State<IosScansScreen> {
                         contentPadding: const EdgeInsets.symmetric(vertical: 14),
                         hintText: 'Search location or item',
                         hintStyle: TextStyle(color: gw.muted, fontSize: 13.5),
-                        icon: Icon(Icons.search, size: 18, color: gw.muted),
+                        icon: GwIcon(GwIcons.search, size: 18, color: gw.muted),
                       ),
                       style: TextStyle(color: gw.text, fontSize: 13.5),
                       cursorColor: gw.green,
@@ -187,8 +188,8 @@ class _IosScansScreenState extends State<IosScansScreen> {
             color: c.withOpacity(.16),
             borderRadius: BorderRadius.circular(14),
           ),
-          child: Icon(
-            hazard ? Icons.warning_amber_rounded : Icons.check_circle_outline,
+          child: GwIcon(
+            hazard ? GwIcons.alert : GwIcons.checkCircle,
             size: 22,
             color: c,
           ),
@@ -233,7 +234,7 @@ class _IosScansScreenState extends State<IosScansScreen> {
           children: [
             Text(when, style: TextStyle(color: gw.muted, fontSize: 10.5)),
             const SizedBox(height: 4),
-            Icon(Icons.chevron_right, size: 16, color: gw.muted),
+            GwIcon(GwIcons.chevronRight, size: 16, color: gw.muted),
           ],
         ),
       ]),
@@ -259,8 +260,8 @@ class _IosScansScreenState extends State<IosScansScreen> {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(
-              active ? Icons.search_off_rounded : Icons.qr_code_scanner_outlined,
+            GwIcon(
+              active ? GwIcons.search : GwIcons.scan,
               size: 40,
               color: gw.muted,
             ),
@@ -286,7 +287,7 @@ class _IosScansScreenState extends State<IosScansScreen> {
                   mainAxisSize: MainAxisSize.min,
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    Icon(Icons.add_rounded, size: 18, color: gw.green),
+                    GwIcon(GwIcons.plus, size: 18, color: gw.green),
                     const SizedBox(width: 8),
                     Text(
                       'New scan',

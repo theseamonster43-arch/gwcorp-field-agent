@@ -5,6 +5,7 @@ import 'package:google_sign_in/google_sign_in.dart';
 
 import '../../data/history_repository.dart';
 import '../../theme/gw_theme.dart';
+import '../../widgets/gw_icons.dart';
 import '../../utils/app_preferences.dart';
 import '../../widgets/gw_glass.dart';
 
@@ -207,7 +208,7 @@ class _IosAccountScreenState extends State<IosAccountScreen> {
                 padding: const EdgeInsets.symmetric(vertical: 8),
                 child: Row(
                   children: [
-                    Icon(Icons.dark_mode_outlined, size: 20, color: gw.text),
+                    GwIcon(GwIcons.moon, size: 20, color: gw.text),
                     const SizedBox(width: 14),
                     Expanded(
                       child: Text(
@@ -239,7 +240,7 @@ class _IosAccountScreenState extends State<IosAccountScreen> {
               child: Column(
                 children: [
                   _ActionRow(
-                    icon: Icons.delete_sweep_outlined,
+                    icon: GwIcons.trash,
                     iconColor: gw.text,
                     label: 'Reset scan history',
                     labelColor: gw.text,
@@ -249,7 +250,7 @@ class _IosAccountScreenState extends State<IosAccountScreen> {
                   ),
                   Divider(color: gw.border, height: 1, thickness: 1),
                   _ActionRow(
-                    icon: Icons.logout_rounded,
+                    icon: GwIcons.logout,
                     iconColor: gw.red,
                     label: 'Log out',
                     labelColor: gw.red,
@@ -284,7 +285,7 @@ class _IosAccountScreenState extends State<IosAccountScreen> {
 
 /// One tappable settings row inside a glass panel.
 class _ActionRow extends StatelessWidget {
-  final IconData icon;
+  final String icon;
   final Color iconColor;
   final String label;
   final Color labelColor;
@@ -312,7 +313,7 @@ class _ActionRow extends StatelessWidget {
           padding: const EdgeInsets.symmetric(vertical: 15),
           child: Row(
             children: [
-              Icon(icon, size: 20, color: iconColor),
+              GwIcon(icon, size: 20, color: iconColor),
               const SizedBox(width: 14),
               Expanded(
                 child: Text(
@@ -324,7 +325,7 @@ class _ActionRow extends StatelessWidget {
                   ),
                 ),
               ),
-              Icon(Icons.chevron_right, size: 18, color: chevronColor),
+              GwIcon(GwIcons.chevronRight, size: 18, color: chevronColor),
             ],
           ),
         ),

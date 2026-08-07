@@ -7,6 +7,7 @@ import 'package:google_sign_in/google_sign_in.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../../data/user_repository.dart';
 import '../../theme/gw_theme.dart';
+import '../../widgets/gw_icons.dart';
 import '../../widgets/gw_glass.dart';
 
 class IosSignInScreen extends StatefulWidget {
@@ -236,7 +237,7 @@ class _IosSignInScreenState extends State<IosSignInScreen> {
                                 color: gw.green.withOpacity(.15),
                                 border: Border.all(color: gw.green.withOpacity(.4), width: 1.5),
                               ),
-                              child: Icon(Icons.recycling, size: 36, color: gw.green),
+                              child: GwIcon(GwIcons.recycle, size: 36, color: gw.green),
                             ),
                             const SizedBox(height: 18),
                             Text(
@@ -265,8 +266,8 @@ class _IosSignInScreenState extends State<IosSignInScreen> {
                                 ),
                                 child: Row(
                                   children: [
-                                    Icon(
-                                      _isSuccess ? Icons.check_circle_outline : Icons.error_outline,
+                                    GwIcon(
+                                      _isSuccess ? GwIcons.checkCircle : GwIcons.alert,
                                       size: 16,
                                       color: banner,
                                     ),
@@ -285,7 +286,7 @@ class _IosSignInScreenState extends State<IosSignInScreen> {
 
                             _GlassButton(
                               label: _loading ? 'Signing in…' : 'Sign in with Google',
-                              icon: Icons.g_mobiledata_rounded,
+                              icon: GwIcons.user,
                               primary: true,
                               enabled: !_loading,
                               onTap: _signInWithGoogle,
@@ -310,25 +311,25 @@ class _IosSignInScreenState extends State<IosSignInScreen> {
                             if (!_emailMode)
                               _GlassButton(
                                 label: 'Continue with Email',
-                                icon: Icons.email_outlined,
+                                icon: GwIcons.mail,
                                 onTap: () => setState(() => _emailMode = true),
                               )
                             else ...[
                               if (_isRegister) ...[
-                                _field('Display Name', Icons.person_outline, _nameCtrl, false),
+                                _field('Display Name', GwIcons.user, _nameCtrl, false),
                                 const SizedBox(height: 10),
                               ],
-                              _field('Email', Icons.email_outlined, _emailCtrl, false),
+                              _field('Email', GwIcons.mail, _emailCtrl, false),
                               const SizedBox(height: 10),
                               _field(
                                 'Password',
-                                Icons.lock_outline,
+                                GwIcons.lock,
                                 _passCtrl,
                                 _obscure,
                                 suffix: GestureDetector(
                                   onTap: () => setState(() => _obscure = !_obscure),
-                                  child: Icon(
-                                    _obscure ? Icons.visibility_outlined : Icons.visibility_off_outlined,
+                                  child: GwIcon(
+                                    _obscure ? GwIcons.eye : GwIcons.eyeOff,
                                     size: 18,
                                     color: gw.muted,
                                   ),
@@ -383,7 +384,7 @@ class _IosSignInScreenState extends State<IosSignInScreen> {
     );
   }
 
-  Widget _field(String label, IconData icon, TextEditingController ctrl, bool obscure, {Widget? suffix}) {
+  Widget _field(String label, String icon, TextEditingController ctrl, bool obscure, {Widget? suffix}) {
     final gw = GwTheme.of(context);
     return GwGlass(
       radius: 14,
@@ -400,7 +401,7 @@ class _IosSignInScreenState extends State<IosSignInScreen> {
           contentPadding: const EdgeInsets.symmetric(vertical: 15),
           hintText: label,
           hintStyle: TextStyle(color: gw.muted, fontSize: 14),
-          icon: Icon(icon, size: 18, color: gw.muted),
+          icon: GwIcon(icon, size: 18, color: gw.muted),
           suffixIcon: suffix,
         ),
       ),
@@ -410,7 +411,7 @@ class _IosSignInScreenState extends State<IosSignInScreen> {
 
 class _GlassButton extends StatelessWidget {
   final String label;
-  final IconData? icon;
+  final String? icon;
   final VoidCallback? onTap;
   final bool primary;
   final bool enabled;
@@ -438,7 +439,7 @@ class _GlassButton extends StatelessWidget {
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
           if (icon != null) ...[
-            Icon(icon, size: 19, color: fg),
+            GwIcon(icon!, size: 19, color: fg),
             const SizedBox(width: 9),
           ],
           Text(

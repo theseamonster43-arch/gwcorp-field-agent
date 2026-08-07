@@ -13,7 +13,16 @@ class GwIconButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     if (Platform.isIOS || Platform.isAndroid) {
-      return GwGlassIcon(icon: icon, onTap: onPressed, size: size, color: color);
+      // Takes Material IconData (the desktop screens still pass those), so it
+      // wraps a plain Icon rather than going through GwGlassIcon, which now
+      // expects a GwIcons path string.
+      return GwGlass(
+        radius: 99,
+        blur: 20,
+        onTap: onPressed,
+        padding: const EdgeInsets.all(9),
+        child: Icon(icon, size: size, color: color),
+      );
     }
     return IconButton(icon: Icon(icon, color: color, size: size), onPressed: onPressed);
   }

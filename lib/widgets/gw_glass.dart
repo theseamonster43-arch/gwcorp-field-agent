@@ -1,6 +1,7 @@
 import 'dart:ui';
 import 'package:flutter/material.dart';
 import '../theme/gw_theme.dart';
+import 'gw_icons.dart';
 
 /// Gradient + blob backdrop. Glass only reads as glass when there is varied
 /// colour behind it to blur, so every glass screen sits on top of this.
@@ -111,7 +112,7 @@ class GwGlass extends StatelessWidget {
 
 /// Small circular glass button — nav bar actions, close buttons, etc.
 class GwGlassIcon extends StatelessWidget {
-  final IconData icon;
+  final String icon;
   final VoidCallback? onTap;
   final double size;
   final Color? color;
@@ -126,7 +127,7 @@ class GwGlassIcon extends StatelessWidget {
       blur: 20,
       onTap: onTap,
       padding: const EdgeInsets.all(9),
-      child: Icon(icon, size: size, color: color ?? gw.text),
+      child: GwIcon(icon, size: size, color: color ?? gw.text),
     );
   }
 }
@@ -164,7 +165,7 @@ class _PressableState extends State<_Pressable> {
 
 /// Compact metric card used on Home and Analytics.
 class GwStatTile extends StatelessWidget {
-  final IconData icon;
+  final String icon;
   final String label;
   final String value;
   final Color? accent;
@@ -197,7 +198,7 @@ class GwStatTile extends StatelessWidget {
               color: c.withOpacity(.16),
               borderRadius: BorderRadius.circular(10),
             ),
-            child: Icon(icon, size: 15, color: c),
+            child: GwIcon(icon, size: 15, color: c),
           ),
           const SizedBox(height: 8),
           Text(

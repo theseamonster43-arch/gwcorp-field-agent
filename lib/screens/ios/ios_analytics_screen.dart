@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../data/models.dart';
 import '../../theme/gw_theme.dart';
+import '../../widgets/gw_icons.dart';
 import '../../widgets/gw_glass.dart';
 
 class IosAnalyticsScreen extends StatelessWidget {
@@ -94,7 +95,7 @@ class IosAnalyticsScreen extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.center,
                 children: [
-                  Icon(Icons.recycling, size: 34, color: gw.green),
+                  GwIcon(GwIcons.recycle, size: 34, color: gw.green),
                   const SizedBox(height: 10),
                   Text(
                     '$totalRecyclable',
@@ -144,28 +145,28 @@ class IosAnalyticsScreen extends StatelessWidget {
               childAspectRatio: 1.18,
               children: [
                 GwStatTile(
-                  icon: Icons.qr_code_scanner_rounded,
+                  icon: GwIcons.scan,
                   label: 'Scans run',
                   value: '$totalScans',
                   accent: gw.green,
                   sub: '${last7.length} this week',
                 ),
                 GwStatTile(
-                  icon: Icons.inventory_2_outlined,
+                  icon: GwIcons.box,
                   label: 'Items logged',
                   value: '$totalItems',
                   accent: gw.green,
                   sub: '${avgItems.toStringAsFixed(1)} avg / scan',
                 ),
                 GwStatTile(
-                  icon: Icons.warning_amber_rounded,
+                  icon: GwIcons.alert,
                   label: 'Hazardous',
                   value: '$totalHazard',
                   accent: gw.amber,
                   sub: totalHazard == 0 ? 'All clear' : 'Needs handling',
                 ),
                 GwStatTile(
-                  icon: Icons.place_outlined,
+                  icon: GwIcons.pin,
                   label: 'Locations',
                   value: '$locations',
                   accent: gw.green,
@@ -242,7 +243,7 @@ class IosAnalyticsScreen extends StatelessWidget {
                   mainAxisSize: MainAxisSize.min,
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    Icon(Icons.verified_outlined, size: 18, color: gw.green),
+                    GwIcon(GwIcons.shield, size: 18, color: gw.green),
                     const SizedBox(width: 8),
                     Text(
                       'No hazardous material recorded',

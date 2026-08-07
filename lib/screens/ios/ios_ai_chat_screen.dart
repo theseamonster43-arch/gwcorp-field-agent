@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../services/claude_service.dart';
 import '../../theme/gw_theme.dart';
+import '../../widgets/gw_icons.dart';
 import '../../widgets/gw_glass.dart';
 
 class IosAiChatScreen extends StatefulWidget {
@@ -69,7 +70,7 @@ class _IosAiChatScreenState extends State<IosAiChatScreen> {
       child: Row(
         children: [
           GwGlassIcon(
-            icon: Icons.arrow_back_ios_new,
+            icon: GwIcons.chevronLeft,
             size: 16,
             onTap: () => Navigator.of(context).pop(),
           ),
@@ -81,7 +82,7 @@ class _IosAiChatScreenState extends State<IosAiChatScreen> {
               shape: BoxShape.circle,
               color: gw.green.withOpacity(.15),
             ),
-            child: Icon(Icons.auto_awesome, size: 17, color: gw.green),
+            child: GwIcon(GwIcons.sparkle, size: 17, color: gw.green),
           ),
           const SizedBox(width: 10),
           Expanded(
@@ -121,7 +122,7 @@ class _IosAiChatScreenState extends State<IosAiChatScreen> {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Icon(Icons.auto_awesome, size: 42, color: gw.green),
+              GwIcon(GwIcons.sparkle, size: 42, color: gw.green),
               const SizedBox(height: 14),
               Text(
                 'GWCORP AI Assistant',
@@ -185,7 +186,7 @@ class _IosAiChatScreenState extends State<IosAiChatScreen> {
                     shape: BoxShape.circle,
                     color: gw.green.withOpacity(.15),
                   ),
-                  child: Icon(Icons.auto_awesome, size: 14, color: gw.green),
+                  child: GwIcon(GwIcons.sparkle, size: 14, color: gw.green),
                 ),
                 const SizedBox(width: 8),
               ],
@@ -259,8 +260,8 @@ class _IosAiChatScreenState extends State<IosAiChatScreen> {
                     ),
                   ],
                 ),
-                child: const Icon(
-                  Icons.arrow_upward_rounded,
+                child: const GwIcon(
+                  GwIcons.arrowUp,
                   size: 20,
                   color: Colors.white,
                 ),

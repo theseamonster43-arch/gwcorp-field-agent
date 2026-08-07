@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 import '../../data/models.dart';
 import '../../theme/gw_theme.dart';
+import '../../widgets/gw_icons.dart';
 import '../../widgets/gw_glass.dart';
 
 /// Compact number: 940 -> '940', 1200 -> '1.2k', 3000 -> '3k'.
@@ -119,9 +120,9 @@ class IosHomeScreen extends StatelessWidget {
                 ],
               ),
             ),
-            GwGlassIcon(icon: Icons.forum_outlined, onTap: onOpenChats),
+            GwGlassIcon(icon: GwIcons.chat, onTap: onOpenChats),
             const SizedBox(width: 8),
-            GwGlassIcon(icon: Icons.auto_awesome, onTap: onOpenAi),
+            GwGlassIcon(icon: GwIcons.sparkle, onTap: onOpenAi),
             const SizedBox(width: 10),
             if (photo != null)
               CircleAvatar(radius: 19, backgroundImage: NetworkImage(photo))
@@ -163,7 +164,7 @@ class IosHomeScreen extends StatelessWidget {
                   color: gw.green.withOpacity(.18),
                   borderRadius: BorderRadius.circular(16),
                 ),
-                child: Icon(Icons.qr_code_scanner_rounded, size: 26, color: gw.green),
+                child: GwIcon(GwIcons.scan, size: 26, color: gw.green),
               ),
               const SizedBox(width: 14),
               Expanded(
@@ -189,7 +190,7 @@ class IosHomeScreen extends StatelessWidget {
                 ),
               ),
               const SizedBox(width: 10),
-              Icon(Icons.arrow_forward_rounded, size: 18, color: gw.green),
+              GwIcon(GwIcons.arrowRight, size: 18, color: gw.green),
             ]),
           ),
 
@@ -210,26 +211,26 @@ class IosHomeScreen extends StatelessWidget {
             childAspectRatio: 1.18,
             children: [
               GwStatTile(
-                icon: Icons.inventory_2_outlined,
+                icon: GwIcons.box,
                 label: 'Items logged',
                 value: _compact(items),
                 accent: gw.green,
               ),
               GwStatTile(
-                icon: Icons.recycling,
+                icon: GwIcons.recycle,
                 label: 'Recyclable',
                 value: _compact(recyclable),
                 accent: gw.green,
                 sub: recyclablePct == null ? null : '$recyclablePct% of items',
               ),
               GwStatTile(
-                icon: Icons.warning_amber_rounded,
+                icon: GwIcons.alert,
                 label: 'Hazardous',
                 value: _compact(hazardous),
                 accent: gw.amber,
               ),
               GwStatTile(
-                icon: Icons.place_outlined,
+                icon: GwIcons.pin,
                 label: 'Locations',
                 value: _compact(locations.length),
                 accent: gw.green,
@@ -252,7 +253,7 @@ class IosHomeScreen extends StatelessWidget {
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Icon(Icons.qr_code_scanner_outlined, size: 36, color: gw.muted),
+                  GwIcon(GwIcons.scan, size: 36, color: gw.muted),
                   const SizedBox(height: 10),
                   Text(
                     'No scans yet',
@@ -300,8 +301,8 @@ class IosHomeScreen extends StatelessWidget {
             color: accent.withOpacity(.16),
             borderRadius: BorderRadius.circular(14),
           ),
-          child: Icon(
-            flagged ? Icons.warning_amber_rounded : Icons.check_circle_outline,
+          child: GwIcon(
+            flagged ? GwIcons.alert : GwIcons.checkCircle,
             size: 20,
             color: accent,
           ),
@@ -340,7 +341,7 @@ class IosHomeScreen extends StatelessWidget {
             if (when.isNotEmpty)
               Text(when, style: TextStyle(color: gw.muted, fontSize: 10.5)),
             const SizedBox(height: 4),
-            Icon(Icons.chevron_right, size: 16, color: gw.muted),
+            GwIcon(GwIcons.chevronRight, size: 16, color: gw.muted),
           ],
         ),
       ]),
