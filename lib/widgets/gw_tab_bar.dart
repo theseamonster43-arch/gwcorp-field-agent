@@ -71,8 +71,8 @@ class GwTabBar extends StatelessWidget {
                         Icons.qr_code_scanner_outlined),
                     const SizedBox(width: fabSize + 20),
                     _tab(gw, 2, Icons.insights_rounded, Icons.insights_outlined),
-                    _tab(gw, 3, Icons.account_circle_rounded,
-                        Icons.account_circle_outlined),
+                    // Slot 3 is the "more" menu, not a screen of its own.
+                    _tab(gw, 3, Icons.menu_rounded, Icons.menu),
                   ]),
                 ),
               ),

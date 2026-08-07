@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import '../../data/history_repository.dart';
 import '../../data/models.dart';
+import '../../theme/gw_theme.dart';
 import '../../widgets/gw_glass.dart';
 import '../../widgets/gw_tab_bar.dart';
 import 'ios_home_screen.dart';
@@ -42,7 +43,150 @@ class _IosMainScreenState extends State<IosMainScreen> {
   }
 
   void _goTab(int i) {
+    // Slot 3 is the hamburger — it opens the menu instead of swapping screens.
+    if (i == 3) {
+      _openMore();
+      return;
+    }
     if (i != _tab) setState(() => _tab = i);
+  }
+
+  Future<void> _openMore() async {
+    final gw = GwTheme.of(context);
+    await showModalBottomSheet<void>(
+      context: context,
+      backgroundColor: Colors.transparent,
+      barrierColor: Colors.black.withOpacity(.45),
+      isScrollControlled: true,
+      builder: (sheetContext) => Padding(
+        padding: EdgeInsets.only(
+          left: 14,
+          right: 14,
+          bottom: MediaQuery.of(sheetContext).padding.bottom + 14,
+        ),
+        child: GwGlass(
+          radius: 26,
+          blur: 30,
+          padding: const EdgeInsets.fromLTRB(14, 12, 14, 14),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Center(
+                child: Container(
+                  width: 38,
+                  height: 4,
+                  decoration: BoxDecoration(
+                    color: gw.muted.withOpacity(.5),
+                    borderRadius: BorderRadius.circular(99),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 16),
+              _moreRow(
+                gw,
+                icon: Icons.forum_outlined,
+                label: 'Chat',
+                detail: 'Messages and team community',
+                onTap: () {
+                  Navigator.of(sheetContext).pop();
+                  context.push('/main/chats');
+                },
+              ),
+              const SizedBox(height: 8),
+              _moreRow(
+                gw,
+                icon: Icons.auto_awesome,
+                label: 'AI Assistant',
+                detail: 'Ask about waste and safety',
+                onTap: () {
+                  Navigator.of(sheetContext).pop();
+                  context.push('/main/ai');
+                },
+              ),
+              const SizedBox(height: 8),
+              _moreRow(
+                gw,
+                icon: Icons.satellite,
+                label: 'Satellite',
+                detail: 'Coming soon',
+                enabled: false,
+                onTap: () {},
+              ),
+              const SizedBox(height: 8),
+              _moreRow(
+                gw,
+                icon: Icons.account_circle_outlined,
+                label: 'Account',
+                detail: 'Profile, preferences and data',
+                onTap: () {
+                  Navigator.of(sheetContext).pop();
+                  setState(() => _tab = 3);
+                },
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _moreRow(
+    GwColors gw, {
+    required IconData icon,
+    required String label,
+    required String detail,
+    required VoidCallback onTap,
+    bool enabled = true,
+  }) {
+    final row = GwGlass(
+      radius: 18,
+      blur: 12,
+      padding: const EdgeInsets.all(13),
+      onTap: enabled ? onTap : null,
+      child: Row(children: [
+        Container(
+          width: 40,
+          height: 40,
+          alignment: Alignment.center,
+          decoration: BoxDecoration(
+            color: gw.green.withOpacity(.16),
+            borderRadius: BorderRadius.circular(13),
+          ),
+          child: Icon(icon, size: 20, color: gw.green),
+        ),
+        const SizedBox(width: 13),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                label,
+                style: TextStyle(
+                  color: gw.text,
+                  fontSize: 14.5,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+              const SizedBox(height: 2),
+              Text(
+                detail,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(color: gw.muted, fontSize: 11.5),
+              ),
+            ],
+          ),
+        ),
+        Icon(
+          enabled ? Icons.chevron_right : Icons.lock_outline,
+          size: 17,
+          color: gw.muted,
+        ),
+      ]),
+    );
+    return enabled ? row : Opacity(opacity: .5, child: row);
   }
 
   @override
