@@ -5,7 +5,10 @@ import '../../widgets/gw_icons.dart';
 import '../../widgets/gw_glass.dart';
 
 class IosAiChatScreen extends StatefulWidget {
-  const IosAiChatScreen({super.key});
+  /// False when hosted inside the tab shell — the tab bar is the way out, so
+  /// there is nothing to go back to.
+  final bool showBack;
+  const IosAiChatScreen({super.key, this.showBack = true});
   @override
   State<IosAiChatScreen> createState() => _IosAiChatScreenState();
 }
@@ -66,15 +69,17 @@ class _IosAiChatScreenState extends State<IosAiChatScreen> {
 
   Widget _header(GwColors gw) {
     return Padding(
-      padding: const EdgeInsets.fromLTRB(8, 4, 16, 8),
+      padding: EdgeInsets.fromLTRB(widget.showBack ? 8 : 16, 4, 16, 8),
       child: Row(
         children: [
-          GwGlassIcon(
-            icon: GwIcons.chevronLeft,
-            size: 16,
-            onTap: () => Navigator.of(context).pop(),
-          ),
-          const SizedBox(width: 12),
+          if (widget.showBack) ...[
+            GwGlassIcon(
+              icon: GwIcons.chevronLeft,
+              size: 16,
+              onTap: () => Navigator.of(context).pop(),
+            ),
+            const SizedBox(width: 12),
+          ],
           Container(
             width: 34,
             height: 34,
@@ -208,6 +213,15 @@ class _IosAiChatScreenState extends State<IosAiChatScreen> {
     );
   }
 
+  /// Clears the shell's floating tab bar, but only while it is on screen —
+  /// the shell hides it once the keyboard is up.
+  double _composerBottom(BuildContext context) {
+    if (widget.showBack) return 12;
+    final mq = MediaQuery.of(context);
+    if (mq.viewInsets.bottom > 0) return 12;
+    return mq.padding.bottom + 88;
+  }
+
   Widget _composer(GwColors gw) {
     return Padding(
       // Scaffold already resizes the body for the keyboard
@@ -215,7 +229,7 @@ class _IosAiChatScreenState extends State<IosAiChatScreen> {
       // sits ABOVE the Scaffold, so its MediaQuery still reports the full
       // keyboard height. Adding viewInsets.bottom here would double-count it
       // and float the composer a keyboard-height above the keyboard.
-      padding: const EdgeInsets.fromLTRB(16, 8, 16, 12),
+      padding: EdgeInsets.fromLTRB(16, 8, 16, _composerBottom(context)),
       child: Row(
         children: [
           Expanded(

@@ -73,11 +73,12 @@ class _IosMainScreenState extends State<IosMainScreen>
     _setTab(i);
   }
 
-  // Secondary screens open as sheets over the shell rather than covering it,
-  // so the tab bar stays put and dismissing is a swipe away.
-  void _openChats() => showGwSheet(context, (_) => const IosChatsList());
+  // Chats and the assistant live inside the shell (slots 4 and 5) rather than
+  // over it, so the tab bar stays visible and they need no back button —
+  // you leave them by tapping another tab.
+  void _openChats() => _setTab(4);
 
-  void _openAi() => showGwSheet(context, (_) => const IosAiChatScreen());
+  void _openAi() => _setTab(5);
 
   void _newScan() => showGwSheet(
         context,
@@ -270,16 +271,23 @@ class _IosMainScreenState extends State<IosMainScreen>
                   ),
                   IosAnalyticsScreen(sessions: _sessions),
                   const IosAccountScreen(),
+                  const IosChatsList(showBack: false),
+                  const IosAiChatScreen(showBack: false),
                 ],
               ),
             ),
           ),
+          // Hidden while the keyboard is up, otherwise it would sit behind it
+          // and steal room from the chat composers.
+          if (MediaQuery.of(context).viewInsets.bottom == 0)
           Positioned(
             left: 0,
             right: 0,
             bottom: 0,
             child: GwTabBar(
-              currentIndex: _tab,
+              // Account, Chats and the assistant are all reached through the
+              // hamburger, so slot 3 stays lit for all three.
+              currentIndex: _tab >= 3 ? 3 : _tab,
               onTap: _goTab,
               onCenterTap: _newScan,
             ),

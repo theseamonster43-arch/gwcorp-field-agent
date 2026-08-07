@@ -11,7 +11,10 @@ import '../../widgets/gw_icons.dart';
 import '../../widgets/gw_glass.dart';
 
 class IosChatsList extends StatefulWidget {
-  const IosChatsList({super.key});
+  /// False when hosted inside the tab shell — the tab bar is the way out, so
+  /// there is nothing to go back to.
+  final bool showBack;
+  const IosChatsList({super.key, this.showBack = true});
   @override
   State<IosChatsList> createState() => _IosChatsListState();
 }
@@ -56,14 +59,16 @@ class _IosChatsListState extends State<IosChatsList> {
         child: SafeArea(
           child: Column(children: [
             Padding(
-              padding: const EdgeInsets.fromLTRB(8, 4, 16, 0),
+              padding: EdgeInsets.fromLTRB(widget.showBack ? 8 : 16, 4, 16, 0),
               child: Row(children: [
-                GwGlassIcon(
-                  icon: GwIcons.chevronLeft,
-                  size: 16,
-                  onTap: () => Navigator.of(context).pop(),
-                ),
-                const SizedBox(width: 12),
+                if (widget.showBack) ...[
+                  GwGlassIcon(
+                    icon: GwIcons.chevronLeft,
+                    size: 16,
+                    onTap: () => Navigator.of(context).pop(),
+                  ),
+                  const SizedBox(width: 12),
+                ],
                 Expanded(
                   child: Text(
                     _seg == 0 ? 'Messages' : 'Community',
@@ -98,7 +103,7 @@ class _IosChatsListState extends State<IosChatsList> {
             Expanded(
               child: _seg == 0
                   ? _IosDmList(myEmail: myEmail)
-                  : const _IosCommunityChat(),
+                  : _IosCommunityChat(inShell: !widget.showBack),
             ),
           ]),
         ),
@@ -330,12 +335,23 @@ class _PersonRow extends StatelessWidget {
 // ── Community Chat ────────────────────────────────────────────────────────────
 
 class _IosCommunityChat extends StatefulWidget {
-  const _IosCommunityChat();
+  /// True when the shell's floating tab bar is overlapping the bottom edge.
+  final bool inShell;
+  const _IosCommunityChat({this.inShell = false});
   @override
   State<_IosCommunityChat> createState() => _IosCommunityChatState();
 }
 
 class _IosCommunityChatState extends State<_IosCommunityChat> {
+  /// Clears the shell's floating tab bar, but only while it is on screen —
+  /// the shell hides it once the keyboard is up.
+  double _composerBottom(BuildContext context) {
+    if (!widget.inShell) return 12;
+    final mq = MediaQuery.of(context);
+    if (mq.viewInsets.bottom > 0) return 12;
+    return mq.padding.bottom + 88;
+  }
+
   final _ctrl = TextEditingController();
   final _scroll = ScrollController();
   bool _sending = false;
@@ -411,7 +427,7 @@ class _IosCommunityChatState extends State<_IosCommunityChat> {
         // viewInsets from the MediaQuery it hands the body. Adding
         // viewInsets.bottom here would double-count it and float the composer
         // a full keyboard-height above the keyboard.
-        padding: const EdgeInsets.fromLTRB(16, 8, 16, 12),
+        padding: EdgeInsets.fromLTRB(16, 8, 16, _composerBottom(context)),
         child: Row(children: [
           Expanded(
             child: GwGlass(
