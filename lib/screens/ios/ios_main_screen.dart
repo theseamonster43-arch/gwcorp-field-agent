@@ -7,7 +7,11 @@ import '../../data/models.dart';
 import '../../theme/gw_theme.dart';
 import '../../widgets/gw_icons.dart';
 import '../../widgets/gw_glass.dart';
+import '../../widgets/gw_sheet.dart';
 import '../../widgets/gw_tab_bar.dart';
+import '../batch_setup_screen.dart';
+import 'ios_ai_chat_screen.dart';
+import 'ios_chats_screen.dart';
 import 'ios_home_screen.dart';
 import 'ios_scans_screen.dart';
 import 'ios_analytics_screen.dart';
@@ -69,6 +73,26 @@ class _IosMainScreenState extends State<IosMainScreen>
     _setTab(i);
   }
 
+  // Secondary screens open as sheets over the shell rather than covering it,
+  // so the tab bar stays put and dismissing is a swipe away.
+  void _openChats() => showGwSheet(context, (_) => const IosChatsList());
+
+  void _openAi() => showGwSheet(context, (_) => const IosAiChatScreen());
+
+  void _newScan() => showGwSheet(
+        context,
+        (sheetContext) => BatchSetupScreen(
+          onDone: () => Navigator.of(sheetContext).pop(),
+          // Close the sheet before the camera pushes, otherwise the rest of the
+          // scan flow would run on top of an orphaned sheet route.
+          onContinue: () {
+            Navigator.of(sheetContext).pop();
+            context.push('/main/camera');
+          },
+        ),
+        heightFactor: 0.72,
+      );
+
   Future<void> _openMore() async {
     final gw = GwTheme.of(context);
     await showModalBottomSheet<void>(
@@ -108,7 +132,7 @@ class _IosMainScreenState extends State<IosMainScreen>
                 detail: 'Messages and team community',
                 onTap: () {
                   Navigator.of(sheetContext).pop();
-                  context.push('/main/chats');
+                  _openChats();
                 },
               ),
               const SizedBox(height: 8),
@@ -119,7 +143,7 @@ class _IosMainScreenState extends State<IosMainScreen>
                 detail: 'Ask about waste and safety',
                 onTap: () {
                   Navigator.of(sheetContext).pop();
-                  context.push('/main/ai');
+                  _openAi();
                 },
               ),
               const SizedBox(height: 8),
@@ -234,15 +258,15 @@ class _IosMainScreenState extends State<IosMainScreen>
                 children: [
                   IosHomeScreen(
                     sessions: _sessions,
-                    onNewScan: () => context.push('/main/batch'),
+                    onNewScan: _newScan,
                     onSeeAllScans: () => _goTab(1),
                     onOpenAnalytics: () => _goTab(2),
-                    onOpenChats: () => context.push('/main/chats'),
-                    onOpenAi: () => context.push('/main/ai'),
+                    onOpenChats: _openChats,
+                    onOpenAi: _openAi,
                   ),
                   IosScansScreen(
                     sessions: _sessions,
-                    onNewScan: () => context.push('/main/batch'),
+                    onNewScan: _newScan,
                   ),
                   IosAnalyticsScreen(sessions: _sessions),
                   const IosAccountScreen(),
@@ -257,7 +281,7 @@ class _IosMainScreenState extends State<IosMainScreen>
             child: GwTabBar(
               currentIndex: _tab,
               onTap: _goTab,
-              onCenterTap: () => context.push('/main/batch'),
+              onCenterTap: _newScan,
             ),
           ),
         ]),
