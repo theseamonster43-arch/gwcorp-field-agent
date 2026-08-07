@@ -54,15 +54,18 @@ class DefaultFirebaseOptions {
     storageBucket: 'gwcorp-ihs.firebasestorage.app',
   );
 
+  // Kept in step with ios/Runner/GoogleService-Info.plist. These pointed at an
+  // older iOS app registration whose bundle id no longer matched the Xcode
+  // target (com.gwcorp.gwcorpFieldAgent), which fails at Firebase init.
   static const FirebaseOptions ios = FirebaseOptions(
     apiKey: 'AIzaSyBy11cOc0VWduOYkfAmKtv0xkzTKe8sY3o',
-    appId: '1:338927356213:ios:3096a3e02dcee16398e47c',
+    appId: '1:338927356213:ios:85dd1f3cec3a220198e47c',
     messagingSenderId: '338927356213',
     projectId: 'gwcorp-ihs',
     storageBucket: 'gwcorp-ihs.firebasestorage.app',
     androidClientId: '338927356213-6tlrpgfmpbg9u29v812gs8rbr98m2es8.apps.googleusercontent.com',
-    iosClientId: '338927356213-rftgd9lb7nnlc6fed9rtr56hpm2grl74.apps.googleusercontent.com',
-    iosBundleId: 'GWCORP.GWCORP',
+    iosClientId: '338927356213-mnnae55jr3dqvhdqhm9751nt9ffc456o.apps.googleusercontent.com',
+    iosBundleId: 'com.gwcorp.gwcorpFieldAgent',
   );
 
   static const FirebaseOptions windows = FirebaseOptions(
