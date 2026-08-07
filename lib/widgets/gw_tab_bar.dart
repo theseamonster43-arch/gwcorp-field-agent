@@ -2,9 +2,10 @@ import 'dart:ui';
 import 'package:flutter/material.dart';
 import '../theme/gw_theme.dart';
 
-/// Floating glass tab bar with a raised gradient "new scan" button in the
-/// middle. Tab indices are 0=Home, 1=Scans, 2=Analytics, 3=Account — the
-/// centre button is not a tab and reports through [onCenterTap].
+/// Bottom bar: full width, rounded at the top corners only, with a gradient
+/// "new scan" button seated in the middle. Tab indices are 0=Home, 1=Scans,
+/// 2=Analytics, 3=Account — the centre button is not a tab and reports
+/// through [onCenterTap].
 class GwTabBar extends StatelessWidget {
   final int currentIndex;
   final ValueChanged<int> onTap;
@@ -18,54 +19,51 @@ class GwTabBar extends StatelessWidget {
   });
 
   static const double barHeight = 64;
-  static const double fabSize = 62;
+  static const double fabSize = 60;
+  static const double topRadius = 26;
+
+  /// How far the centre button pokes above the bar.
+  static const double _raise = 15;
 
   @override
   Widget build(BuildContext context) {
     final gw = GwTheme.of(context);
     final bottomInset = MediaQuery.of(context).padding.bottom;
+    final barBox = barHeight + bottomInset;
 
     return SizedBox(
-      height: barHeight + bottomInset + fabSize / 2,
+      height: barBox + _raise,
       child: Stack(
-        alignment: Alignment.bottomCenter,
-        clipBehavior: Clip.none,
         children: [
-          // Glass bar
           Positioned(
-            left: 14,
-            right: 14,
-            bottom: bottomInset > 0 ? bottomInset - 4 : 10,
+            left: 0,
+            right: 0,
+            bottom: 0,
             child: ClipRRect(
-              borderRadius: BorderRadius.circular(30),
+              borderRadius: const BorderRadius.vertical(top: Radius.circular(topRadius)),
               child: BackdropFilter(
                 filter: ImageFilter.blur(sigmaX: 30, sigmaY: 30),
                 child: Container(
-                  height: barHeight,
+                  height: barBox,
+                  padding: EdgeInsets.only(bottom: bottomInset),
                   decoration: BoxDecoration(
                     color: gw.isDark
                         ? Colors.white.withOpacity(.10)
-                        : Colors.white.withOpacity(.66),
-                    borderRadius: BorderRadius.circular(30),
-                    border: Border.all(
-                      color: gw.isDark
-                          ? Colors.white.withOpacity(.16)
-                          : Colors.white.withOpacity(.88),
-                      width: 1,
-                    ),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black.withOpacity(gw.isDark ? .38 : .12),
-                        blurRadius: 24,
-                        offset: const Offset(0, 8),
+                        : Colors.white.withOpacity(.70),
+                    border: Border(
+                      top: BorderSide(
+                        color: gw.isDark
+                            ? Colors.white.withOpacity(.16)
+                            : Colors.white.withOpacity(.90),
+                        width: 1,
                       ),
-                    ],
+                    ),
                   ),
                   child: Row(children: [
                     _tab(gw, 0, Icons.home_rounded, Icons.home_outlined, 'Home'),
                     _tab(gw, 1, Icons.qr_code_scanner_rounded,
                         Icons.qr_code_scanner_outlined, 'Scans'),
-                    const SizedBox(width: fabSize + 16),
+                    const SizedBox(width: fabSize + 20),
                     _tab(gw, 2, Icons.insights_rounded, Icons.insights_outlined, 'Analytics'),
                     _tab(gw, 3, Icons.account_circle_rounded,
                         Icons.account_circle_outlined, 'Account'),
@@ -75,10 +73,12 @@ class GwTabBar extends StatelessWidget {
             ),
           ),
 
-          // Raised centre action
+          // Centre action, seated low so only a sliver clears the bar.
           Positioned(
-            bottom: (bottomInset > 0 ? bottomInset - 4 : 10) + barHeight - fabSize / 2 - 6,
-            child: _CenterButton(onTap: onCenterTap, gw: gw),
+            left: 0,
+            right: 0,
+            bottom: barBox - fabSize + _raise,
+            child: Center(child: _CenterButton(onTap: onCenterTap, gw: gw)),
           ),
         ],
       ),
@@ -91,29 +91,51 @@ class GwTabBar extends StatelessWidget {
       child: GestureDetector(
         behavior: HitTestBehavior.opaque,
         onTap: () => onTap(index),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            AnimatedSwitcher(
-              duration: const Duration(milliseconds: 180),
-              child: Icon(
-                selected ? active : idle,
-                key: ValueKey(selected),
-                size: 22,
-                color: selected ? gw.green : gw.muted,
-              ),
-            ),
-            const SizedBox(height: 3),
-            Text(
-              label,
-              style: TextStyle(
-                fontSize: 9.5,
-                height: 1,
-                fontWeight: selected ? FontWeight.w800 : FontWeight.w600,
-                color: selected ? gw.green : gw.muted,
-              ),
-            ),
-          ],
+        child: TweenAnimationBuilder<double>(
+          tween: Tween<double>(begin: 0, end: selected ? 1 : 0),
+          duration: const Duration(milliseconds: 280),
+          curve: Curves.easeOutBack,
+          builder: (context, t, _) {
+            // easeOutBack overshoots past 1, which is what gives the little
+            // pop — clamp anything that must stay in range.
+            final c = t.clamp(0.0, 1.0);
+            final tint = Color.lerp(gw.muted, gw.green, c)!;
+            return Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Transform.translate(
+                  offset: Offset(0, -3 * t),
+                  child: Transform.scale(
+                    scale: 1 + .16 * t,
+                    child: Icon(selected ? active : idle, size: 21, color: tint),
+                  ),
+                ),
+                const SizedBox(height: 3),
+                Text(
+                  label,
+                  style: TextStyle(
+                    fontSize: 9.5,
+                    height: 1,
+                    fontWeight: FontWeight.lerp(
+                      FontWeight.w600,
+                      FontWeight.w800,
+                      c,
+                    ),
+                    color: tint,
+                  ),
+                ),
+                const SizedBox(height: 3),
+                Container(
+                  width: 4 * c,
+                  height: 4 * c,
+                  decoration: BoxDecoration(
+                    color: gw.green.withOpacity(c),
+                    shape: BoxShape.circle,
+                  ),
+                ),
+              ],
+            );
+          },
         ),
       ),
     );
@@ -160,20 +182,20 @@ class _CenterButtonState extends State<_CenterButton> {
             ),
             boxShadow: [
               BoxShadow(
-                color: gw.green.withOpacity(.55),
-                blurRadius: 22,
+                color: gw.green.withOpacity(.50),
+                blurRadius: 20,
                 spreadRadius: 1,
-                offset: const Offset(0, 6),
+                offset: const Offset(0, 5),
               ),
               BoxShadow(
-                color: Colors.black.withOpacity(.22),
+                color: Colors.black.withOpacity(.20),
                 blurRadius: 10,
                 offset: const Offset(0, 3),
               ),
             ],
             border: Border.all(color: Colors.white.withOpacity(.32), width: 1.4),
           ),
-          child: const Icon(Icons.add_rounded, size: 32, color: Colors.white),
+          child: const Icon(Icons.add_rounded, size: 30, color: Colors.white),
         ),
       ),
     );
