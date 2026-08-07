@@ -1,8 +1,9 @@
 import 'dart:async';
-import 'dart:io' show HttpServer;
+import 'dart:io' show HttpServer, Platform;
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:google_sign_in/google_sign_in.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../../data/user_repository.dart';
 import '../../theme/gw_theme.dart';
@@ -32,7 +33,43 @@ class _IosSignInScreenState extends State<IosSignInScreen> {
     super.dispose();
   }
 
+  /// Android has the native Google account picker wired up, so it uses that.
+  /// iOS falls through to the loopback browser flow below.
   Future<void> _signInWithGoogle() async {
+    if (Platform.isAndroid) {
+      await _signInWithGoogleNative();
+      return;
+    }
+    await _signInWithGoogleLoopback();
+  }
+
+  Future<void> _signInWithGoogleNative() async {
+    setState(() { _loading = true; _error = ''; });
+    try {
+      final account = await GoogleSignIn().signIn();
+      if (account == null) {
+        if (mounted) setState(() => _loading = false);
+        return;
+      }
+      final auth = await account.authentication;
+      final cred = GoogleAuthProvider.credential(
+          accessToken: auth.accessToken, idToken: auth.idToken);
+      final result = await FirebaseAuth.instance.signInWithCredential(cred);
+      final u = result.user;
+      if (u != null) {
+        await UserRepository.saveProfile(AppUser(
+          email: u.email ?? '',
+          name: u.displayName ?? u.email ?? '',
+          photoUrl: u.photoURL,
+        ));
+      }
+      if (mounted) context.go('/main');
+    } catch (e) {
+      if (mounted) setState(() { _error = e.toString(); _loading = false; });
+    }
+  }
+
+  Future<void> _signInWithGoogleLoopback() async {
     setState(() { _loading = true; _error = ''; });
     HttpServer? server;
     bool dialogOpen = false;

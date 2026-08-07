@@ -66,12 +66,16 @@ Page<void> _slidePage(GoRouterState state, Widget child) => CustomTransitionPage
       ),
     );
 
+/// Phones share the glass tab-bar UI in screens/ios. Desktop keeps the
+/// windowed layout, which the floating tab bar is not designed for.
+final bool _isPhone = Platform.isIOS || Platform.isAndroid;
+
 final _router = GoRouter(
   initialLocation: '/splash',
   routes: [
     GoRoute(path: '/splash',  pageBuilder: (_, s) => _fadePage(s, const SplashScreen())),
-    GoRoute(path: '/signin',  pageBuilder: (_, s) => _fadePage(s, Platform.isIOS ? const IosSignInScreen() : const SignInScreen())),
-    GoRoute(path: '/main',    pageBuilder: (_, s) => _fadePage(s, Platform.isIOS ? const IosMainScreen()    : const MainScreen())),
+    GoRoute(path: '/signin',  pageBuilder: (_, s) => _fadePage(s, _isPhone ? const IosSignInScreen() : const SignInScreen())),
+    GoRoute(path: '/main',    pageBuilder: (_, s) => _fadePage(s, _isPhone ? const IosMainScreen()    : const MainScreen())),
     GoRoute(
       path: '/main/session/:id',
       pageBuilder: (_, s) => _slidePage(s,

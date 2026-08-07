@@ -12,7 +12,7 @@ class GwIconButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    if (Platform.isIOS) {
+    if (Platform.isIOS || Platform.isAndroid) {
       return GwGlassIcon(icon: icon, onTap: onPressed, size: size, color: color);
     }
     return IconButton(icon: Icon(icon, color: color, size: size), onPressed: onPressed);
@@ -29,7 +29,7 @@ class GwGlassButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    if (Platform.isIOS) {
+    if (Platform.isIOS || Platform.isAndroid) {
       return GwGlass(radius: radius, padding: padding, onTap: onTap, child: child);
     }
     final inner = padding != null ? Padding(padding: padding!, child: child) : child;
