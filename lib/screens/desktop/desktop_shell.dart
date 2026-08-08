@@ -16,9 +16,10 @@ import '../ios/ios_chats_screen.dart';
 import '../ios/ios_account_screen.dart';
 
 /// Desktop layout, laid out to match the web app at
-/// GWCORP_IHS/public/field-agent.html: a top nav strip, a horizontal tab row,
-/// and a centred content column. The tab screens themselves are shared with
-/// the phone build — only the chrome around them differs.
+/// GWCORP_IHS/public/field-agent.html: a top nav strip, the left icon rail
+/// (new-batch circle, Home, Scans, Stats, Chats) and a centred content column.
+/// The screens themselves are shared with the phone build — only the chrome
+/// around them differs.
 class DesktopShell extends StatefulWidget {
   const DesktopShell({super.key});
   @override
@@ -70,12 +71,12 @@ class _DesktopShellState extends State<DesktopShell> {
           if (isDesktop) const DesktopTitleBar(),
           _nav(),
           Expanded(
-            child: Center(
-              child: ConstrainedBox(
-                constraints: const BoxConstraints(maxWidth: _maxContentWidth),
-                child: Column(children: [
-                  _tabs(),
-                  Expanded(
+            child: Row(children: [
+              _rail(),
+              Expanded(
+                child: Center(
+                  child: ConstrainedBox(
+                    constraints: const BoxConstraints(maxWidth: _maxContentWidth),
                     child: IndexedStack(
                       index: _tab,
                       children: [
@@ -86,6 +87,7 @@ class _DesktopShellState extends State<DesktopShell> {
                           onOpenAnalytics: () => _goTab(2),
                           onOpenChats: () => _goTab(3),
                           onOpenAi: () => context.push('/main/ai'),
+                          onOpenAccount: () => _goTab(4),
                         ),
                         IosScansScreen(
                           sessions: _sessions,
@@ -97,9 +99,9 @@ class _DesktopShellState extends State<DesktopShell> {
                       ],
                     ),
                   ),
-                ]),
+                ),
               ),
-            ),
+            ]),
           ),
         ]),
       ),
@@ -152,29 +154,32 @@ class _DesktopShellState extends State<DesktopShell> {
           ),
         ),
         const Spacer(),
-        _NewScanButton(onTap: () => context.push('/main/batch')),
-        const SizedBox(width: 16),
-        if (photo != null && photo.isNotEmpty)
-          CircleAvatar(radius: 15, backgroundImage: NetworkImage(photo))
-        else
-          Container(
-            width: 30,
-            height: 30,
-            alignment: Alignment.center,
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              color: gw.green.withOpacity(.15),
-              border: Border.all(color: gw.green.withOpacity(.35)),
-            ),
-            child: Text(
-              name.isNotEmpty ? name[0].toUpperCase() : '?',
-              style: TextStyle(
-                color: gw.green,
-                fontSize: 12,
-                fontWeight: FontWeight.w800,
-              ),
-            ),
-          ),
+        // Avatar opens Account, mirroring the web nav — the rail has no slot
+        // for it, same as the site.
+        GestureDetector(
+          behavior: HitTestBehavior.opaque,
+          onTap: () => _goTab(4),
+          child: photo != null && photo.isNotEmpty
+              ? CircleAvatar(radius: 15, backgroundImage: NetworkImage(photo))
+              : Container(
+                  width: 30,
+                  height: 30,
+                  alignment: Alignment.center,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: gw.green.withOpacity(.15),
+                    border: Border.all(color: gw.green.withOpacity(.35)),
+                  ),
+                  child: Text(
+                    name.isNotEmpty ? name[0].toUpperCase() : '?',
+                    style: TextStyle(
+                      color: gw.green,
+                      fontSize: 12,
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                ),
+        ),
         const SizedBox(width: 9),
         ConstrainedBox(
           constraints: const BoxConstraints(maxWidth: 150),
@@ -195,59 +200,105 @@ class _DesktopShellState extends State<DesktopShell> {
     );
   }
 
-  // ── Tab row — mirrors the site's .gw-tabs ────────────────────────────────
-  Widget _tabs() {
+  // ── Left rail — mirrors the site's .gw-rail ──────────────────────────────
+  Widget _rail() {
     final gw = GwTheme.of(context);
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 18, 16, 6),
-      child: Container(
-        padding: const EdgeInsets.all(4),
-        decoration: BoxDecoration(
-          color: gw.bg2.withOpacity(.55),
-          borderRadius: BorderRadius.circular(14),
-          border: Border.all(color: gw.border),
-        ),
-        child: Row(children: [
-          _tabBtn(0, GwIcons.home, 'Dashboard'),
-          _tabBtn(1, GwIcons.scan, 'Scans'),
-          _tabBtn(2, GwIcons.chart, 'Analytics'),
-          _tabBtn(3, GwIcons.chat, 'Chats'),
-          _tabBtn(4, GwIcons.user, 'Account'),
-        ]),
+    return Container(
+      width: 74,
+      padding: const EdgeInsets.only(top: 14),
+      decoration: BoxDecoration(
+        border: Border(right: BorderSide(color: gw.border)),
       ),
+      child: Column(children: [
+        _RailNewButton(onTap: () => context.push('/main/batch')),
+        const SizedBox(height: 20),
+        _railBtn(0, GwIcons.home, 'Home'),
+        _railBtn(1, GwIcons.scan, 'Scans'),
+        _railBtn(2, GwIcons.chart, 'Stats'),
+        _railBtn(3, GwIcons.chat, 'Chats'),
+      ]),
     );
   }
 
-  Widget _tabBtn(int index, String icon, String label) {
+  Widget _railBtn(int index, String icon, String label) {
     final gw = GwTheme.of(context);
     final selected = _tab == index;
-    return Expanded(
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 6),
       child: GestureDetector(
         behavior: HitTestBehavior.opaque,
         onTap: () => _goTab(index),
         child: AnimatedContainer(
           duration: const Duration(milliseconds: 180),
           curve: Curves.easeOut,
-          padding: const EdgeInsets.symmetric(vertical: 10),
+          width: 54,
+          padding: const EdgeInsets.symmetric(vertical: 9),
           decoration: BoxDecoration(
             color: selected ? gw.green.withOpacity(.14) : Colors.transparent,
-            borderRadius: BorderRadius.circular(10),
+            borderRadius: BorderRadius.circular(12),
           ),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              GwIcon(icon, size: 15, color: selected ? gw.green : gw.muted),
-              const SizedBox(width: 7),
-              Text(
-                label,
-                style: TextStyle(
-                  color: selected ? gw.green : gw.muted,
-                  fontSize: 12.5,
-                  fontWeight: selected ? FontWeight.w700 : FontWeight.w600,
-                ),
+          child: Column(children: [
+            GwIcon(icon, size: 20, color: selected ? gw.green : gw.muted),
+            const SizedBox(height: 5),
+            Text(
+              label,
+              style: TextStyle(
+                color: selected ? gw.green : gw.muted,
+                fontSize: 10,
+                height: 1,
+                fontWeight: selected ? FontWeight.w700 : FontWeight.w600,
+              ),
+            ),
+          ]),
+        ),
+      ),
+    );
+  }
+}
+
+/// The rail's big green "new batch" circle.
+class _RailNewButton extends StatefulWidget {
+  final VoidCallback onTap;
+  const _RailNewButton({required this.onTap});
+  @override
+  State<_RailNewButton> createState() => _RailNewButtonState();
+}
+
+class _RailNewButtonState extends State<_RailNewButton> {
+  bool _down = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final gw = GwTheme.of(context);
+    return GestureDetector(
+      onTapDown: (_) => setState(() => _down = true),
+      onTapUp: (_) => setState(() => _down = false),
+      onTapCancel: () => setState(() => _down = false),
+      onTap: widget.onTap,
+      child: AnimatedScale(
+        scale: _down ? 1.08 : 1.0,
+        duration: const Duration(milliseconds: 140),
+        curve: Curves.easeOutBack,
+        child: Container(
+          width: 46,
+          height: 46,
+          decoration: BoxDecoration(
+            shape: BoxShape.circle,
+            gradient: LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: [const Color(0xFF4ADE80), gw.green, gw.greenDim],
+            ),
+            boxShadow: [
+              BoxShadow(
+                color: gw.green.withOpacity(.50),
+                blurRadius: 18,
+                offset: const Offset(0, 5),
               ),
             ],
           ),
+          child: const GwIcon(GwIcons.plus, size: 22,
+              color: Colors.white, strokeWidth: 2.4),
         ),
       ),
     );
@@ -289,35 +340,6 @@ class _PulseDotState extends State<_PulseDot> with SingleTickerProviderStateMixi
           boxShadow: [BoxShadow(color: gw.green.withOpacity(.7), blurRadius: 8)],
         ),
       ),
-    );
-  }
-}
-
-class _NewScanButton extends StatelessWidget {
-  final VoidCallback onTap;
-  const _NewScanButton({required this.onTap});
-
-  @override
-  Widget build(BuildContext context) {
-    final gw = GwTheme.of(context);
-    return GwGlass(
-      radius: 10,
-      blur: 12,
-      accent: gw.green,
-      onTap: onTap,
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 9),
-      child: Row(mainAxisSize: MainAxisSize.min, children: [
-        GwIcon(GwIcons.plus, size: 14, color: gw.green, strokeWidth: 2.2),
-        const SizedBox(width: 7),
-        Text(
-          'New Scan',
-          style: TextStyle(
-            color: gw.green,
-            fontSize: 12.5,
-            fontWeight: FontWeight.w700,
-          ),
-        ),
-      ]),
     );
   }
 }
