@@ -8,6 +8,7 @@ import '../../theme/gw_theme.dart';
 import '../../widgets/gw_icons.dart';
 import '../../utils/app_preferences.dart';
 import '../../widgets/gw_glass.dart';
+import '../../widgets/gw_responsive.dart';
 
 class IosAccountScreen extends StatefulWidget {
   const IosAccountScreen({super.key});
@@ -44,6 +45,7 @@ class _IosAccountScreenState extends State<IosAccountScreen> {
     required String destructiveLabel,
   }) async {
     final gw = GwTheme.of(context);
+    final g = gwGutter(context);
     final ok = await showDialog<bool>(
       context: context,
       builder: (_) => AlertDialog(
@@ -117,14 +119,17 @@ class _IosAccountScreenState extends State<IosAccountScreen> {
     return Scaffold(
       backgroundColor: Colors.transparent,
       body: SafeArea(
-        child: ListView(
-          padding: const EdgeInsets.fromLTRB(16, 4, 16, 120),
+        child: Center(
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 640),
+            child: ListView(
+          padding: EdgeInsets.fromLTRB(g, 4, g, gwPageBottom(context)),
           children: [
             Text(
               'Account',
               style: TextStyle(
                 color: gw.text,
-                fontSize: 26,
+                fontSize: gwTitleSize(context),
                 fontWeight: FontWeight.w800,
                 letterSpacing: -0.8,
               ),
@@ -277,6 +282,8 @@ class _IosAccountScreenState extends State<IosAccountScreen> {
               ),
             ),
           ],
+            ),
+          ),
         ),
       ),
     );

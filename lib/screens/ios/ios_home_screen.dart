@@ -6,6 +6,7 @@ import '../../data/models.dart';
 import '../../theme/gw_theme.dart';
 import '../../widgets/gw_icons.dart';
 import '../../widgets/gw_glass.dart';
+import '../../widgets/gw_responsive.dart';
 
 /// Compact number: 940 -> '940', 1200 -> '1.2k', 3000 -> '3k'.
 String _compact(int n) {
@@ -68,6 +69,8 @@ class IosHomeScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final gw = GwTheme.of(context);
+    final g = gwGutter(context);
+    final wide = gwIsWide(context);
     final user = FirebaseAuth.instance.currentUser;
     final name = _firstName(user);
     final photo = user?.photoURL;
@@ -88,7 +91,7 @@ class IosHomeScreen extends StatelessWidget {
 
     return SafeArea(
       child: ListView(
-        padding: const EdgeInsets.fromLTRB(16, 0, 16, 120),
+        padding: EdgeInsets.fromLTRB(g, 0, g, gwPageBottom(context)),
         children: [
           // ── Header ────────────────────────────────────────────────────────
           Row(children: [
@@ -205,10 +208,10 @@ class IosHomeScreen extends StatelessWidget {
           GridView.count(
             shrinkWrap: true,
             physics: const NeverScrollableScrollPhysics(),
-            crossAxisCount: 2,
+            crossAxisCount: gwStatColumns(context),
             mainAxisSpacing: 12,
             crossAxisSpacing: 12,
-            childAspectRatio: 1.18,
+            childAspectRatio: wide ? 1.32 : 1.18,
             children: [
               GwStatTile(
                 icon: GwIcons.box,

@@ -4,6 +4,7 @@ import '../../data/models.dart';
 import '../../theme/gw_theme.dart';
 import '../../widgets/gw_icons.dart';
 import '../../widgets/gw_glass.dart';
+import '../../widgets/gw_responsive.dart';
 
 class IosAnalyticsScreen extends StatelessWidget {
   const IosAnalyticsScreen({super.key, required this.sessions});
@@ -13,6 +14,8 @@ class IosAnalyticsScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final gw = GwTheme.of(context);
+    final g = gwGutter(context);
+    final wide = gwIsWide(context);
 
     final totalScans = sessions.length;
 
@@ -71,13 +74,13 @@ class IosAnalyticsScreen extends StatelessWidget {
       backgroundColor: Colors.transparent,
       body: SafeArea(
         child: ListView(
-          padding: const EdgeInsets.fromLTRB(16, 4, 16, 120),
+          padding: EdgeInsets.fromLTRB(g, 4, g, gwPageBottom(context)),
           children: [
             Text(
               'Analytics',
               style: TextStyle(
                 color: gw.text,
-                fontSize: 26,
+                fontSize: gwTitleSize(context),
                 fontWeight: FontWeight.w800,
                 letterSpacing: -0.8,
               ),
@@ -139,10 +142,10 @@ class IosAnalyticsScreen extends StatelessWidget {
             GridView.count(
               shrinkWrap: true,
               physics: const NeverScrollableScrollPhysics(),
-              crossAxisCount: 2,
+              crossAxisCount: gwStatColumns(context),
               mainAxisSpacing: 12,
               crossAxisSpacing: 12,
-              childAspectRatio: 1.18,
+              childAspectRatio: wide ? 1.32 : 1.18,
               children: [
                 GwStatTile(
                   icon: GwIcons.scan,

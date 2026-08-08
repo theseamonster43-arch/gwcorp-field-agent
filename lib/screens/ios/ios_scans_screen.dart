@@ -6,6 +6,7 @@ import '../../data/models.dart';
 import '../../theme/gw_theme.dart';
 import '../../widgets/gw_icons.dart';
 import '../../widgets/gw_glass.dart';
+import '../../widgets/gw_responsive.dart';
 
 /// Scans tab — the full scan history. Replaces the old slide-out drawer.
 class IosScansScreen extends StatefulWidget {
@@ -52,6 +53,7 @@ class _IosScansScreenState extends State<IosScansScreen> {
   @override
   Widget build(BuildContext context) {
     final gw = GwTheme.of(context);
+    final g = gwGutter(context);
     final filtered = _filtered;
     final active = _query.isNotEmpty || _filter != 0;
 
@@ -62,7 +64,7 @@ class _IosScansScreenState extends State<IosScansScreen> {
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             Padding(
-              padding: const EdgeInsets.fromLTRB(16, 4, 16, 0),
+              padding: EdgeInsets.fromLTRB(g, 4, g, 0),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
@@ -71,7 +73,7 @@ class _IosScansScreenState extends State<IosScansScreen> {
                       'Scans',
                       style: TextStyle(
                         color: gw.text,
-                        fontSize: 26,
+                        fontSize: gwTitleSize(context),
                         fontWeight: FontWeight.w800,
                         letterSpacing: -0.8,
                       ),
@@ -121,7 +123,7 @@ class _IosScansScreenState extends State<IosScansScreen> {
               child: filtered.isEmpty
                   ? _empty(gw, active)
                   : ListView.separated(
-                      padding: const EdgeInsets.fromLTRB(16, 14, 16, 120),
+                      padding: EdgeInsets.fromLTRB(g, 14, g, gwPageBottom(context)),
                       itemCount: filtered.length,
                       separatorBuilder: (_, __) => const SizedBox(height: 10),
                       itemBuilder: (_, i) => _row(gw, filtered[i]),
