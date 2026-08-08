@@ -188,11 +188,9 @@ class _IosScansScreenState extends State<IosScansScreen> {
             color: c.withOpacity(.16),
             borderRadius: BorderRadius.circular(14),
           ),
-          child: GwIcon(
-            hazard ? GwIcons.alert : GwIcons.checkCircle,
-            size: 22,
-            color: c,
-          ),
+          child: hazard
+              ? GwHazardIcon(size: 22, color: c)
+              : GwIcon(GwIcons.checkCircle, size: 22, color: c),
         ),
         const SizedBox(width: 12),
         Expanded(

@@ -1,12 +1,29 @@
 import 'dart:convert';
 import 'dart:io';
-import 'package:http/http.dart' as http;
+import 'package:cloud_functions/cloud_functions.dart';
 import '../data/models.dart';
 
+/// All Claude traffic goes through the `claude` Cloud Function.
+///
+/// The Anthropic key stays in Secret Manager server-side — it is never
+/// compiled into the app, so it cannot be recovered by unpacking the binary
+/// the way a `String.fromEnvironment` key could.
 class ClaudeService {
-  static const _apiKey = String.fromEnvironment('ANTHROPIC_API_KEY');
-  static const _apiUrl = 'https://api.anthropic.com/v1/messages';
-  static const _model  = 'claude-opus-4-8';
+  static final _fn = FirebaseFunctions.instance.httpsCallable('claude');
+
+  static Future<String?> _call(Map<String, dynamic> payload) async {
+    try {
+      final res = await _fn.call<Map<String, dynamic>>(payload);
+      final text = res.data['text'];
+      return text is String ? text : null;
+    } on FirebaseFunctionsException catch (e) {
+      // ignore: avoid_print
+      print('ClaudeService: ${e.code} ${e.message}');
+      return null;
+    } catch (_) {
+      return null;
+    }
+  }
 
   static const _classifyPrompt = '''Carefully examine this image and identify EVERY distinct waste or trash item you can see.
 
@@ -34,29 +51,15 @@ No explanation, no markdown, ONLY the JSON array.''';
       final b64     = base64Encode(bytes);
       final mime    = imageFile.path.endsWith('.png') ? 'image/png' : 'image/jpeg';
 
-      final response = await http.post(
-        Uri.parse(_apiUrl),
-        headers: {
-          'x-api-key':         _apiKey,
-          'anthropic-version': '2023-06-01',
-          'content-type':      'application/json',
-        },
-        body: jsonEncode({
-          'model':      _model,
-          'max_tokens': 1200,
-          'messages': [
-            {
-              'role': 'user',
-              'content': [
-                {'type': 'image', 'source': {'type': 'base64', 'media_type': mime, 'data': b64}},
-                {'type': 'text',  'text': _classifyPrompt},
-              ],
-            }
-          ],
-        }),
-      );
+      final text = await _call({
+        'mode':            'classify',
+        'imageBase64':     b64,
+        'imageMediaType':  mime,
+        'system':          _classifyPrompt,
+        'maxTokens':       1200,
+      });
+      if (text == null) return [];
 
-      final text = (jsonDecode(response.body)['content'] as List)[0]['text'] as String;
       final match = RegExp(r'\[[\s\S]*\]').firstMatch(text);
       if (match == null) return [];
       final arr = jsonDecode(match.group(0)!) as List;
@@ -70,24 +73,11 @@ No explanation, no markdown, ONLY the JSON array.''';
     required String systemContext,
     required List<Map<String, String>> messages,
   }) async {
-    try {
-      final response = await http.post(
-        Uri.parse(_apiUrl),
-        headers: {
-          'x-api-key':         _apiKey,
-          'anthropic-version': '2023-06-01',
-          'content-type':      'application/json',
-        },
-        body: jsonEncode({
-          'model':      _model,
-          'max_tokens': 800,
-          'system':     systemContext,
-          'messages':   messages,
-        }),
-      );
-      return (jsonDecode(response.body)['content'] as List)[0]['text'] as String;
-    } catch (_) {
-      return null;
-    }
+    return _call({
+      'mode':      'chat',
+      'system':    systemContext,
+      'messages':  messages,
+      'maxTokens': 800,
+    });
   }
 }

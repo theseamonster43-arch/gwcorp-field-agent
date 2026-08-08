@@ -171,6 +171,10 @@ class GwStatTile extends StatelessWidget {
   final Color? accent;
   final String? sub;
 
+  /// Overrides [icon] when set — used for the filled hazard triangle, which is
+  /// a composite rather than a single stroked path.
+  final Widget? iconWidget;
+
   const GwStatTile({
     super.key,
     required this.icon,
@@ -178,6 +182,7 @@ class GwStatTile extends StatelessWidget {
     required this.value,
     this.accent,
     this.sub,
+    this.iconWidget,
   });
 
   @override
@@ -198,7 +203,7 @@ class GwStatTile extends StatelessWidget {
               color: c.withOpacity(.16),
               borderRadius: BorderRadius.circular(10),
             ),
-            child: GwIcon(icon, size: 15, color: c),
+            child: iconWidget ?? GwIcon(icon, size: 15, color: c),
           ),
           const SizedBox(height: 8),
           Text(

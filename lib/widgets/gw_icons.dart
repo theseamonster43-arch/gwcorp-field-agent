@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../theme/gw_theme.dart';
 
 /// The same line-art icon set the web app uses (public/field-agent.html), so
 /// the phone app and the site never drift apart visually.
@@ -29,6 +30,11 @@ class GwIcons {
   static const alert =
       'M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z '
       'M12 9v4 M12 17L12.01 17';
+  /// Just the triangle, closed so it can be filled. The exclamation is drawn
+  /// separately by [GwHazardIcon] so it can punch through the fill.
+  static const alertBody =
+      'M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z';
+  static const alertMark = 'M12 9.5v4.2 M12 17.2L12.01 17.2';
   static const check = 'M20 6L9 17L4 12';
   static const checkCircle =
       'M22 11.08V12a10 10 0 1 1-5.93-9.14 M22 4L12 14.01L9 11.01';
@@ -227,31 +233,85 @@ class _GwIconPainter extends CustomPainter {
   final String data;
   final Color color;
   final double stroke;
+  final bool fill;
 
-  const _GwIconPainter(this.data, this.color, this.stroke);
+  const _GwIconPainter(this.data, this.color, this.stroke, {this.fill = false});
 
   @override
   void paint(Canvas canvas, Size size) {
     final scale = size.width / 24.0;
     canvas.save();
     canvas.scale(scale);
-    canvas.drawPath(
-      _SvgPath.parse(data),
-      Paint()
-        ..style = PaintingStyle.stroke
-        ..color = color
-        // divided by scale so the on-screen width is `stroke` px at any size
-        ..strokeWidth = stroke / scale
-        ..strokeCap = StrokeCap.round
-        ..strokeJoin = StrokeJoin.round
-        ..isAntiAlias = true,
-    );
+    final path = _SvgPath.parse(data);
+    if (fill) {
+      canvas.drawPath(
+        path,
+        Paint()
+          ..style = PaintingStyle.fill
+          ..color = color
+          ..isAntiAlias = true,
+      );
+      // A hairline stroke on top rounds the corners the same way the outline
+      // version does, so filled and stroked icons share a silhouette.
+      canvas.drawPath(
+        path,
+        Paint()
+          ..style = PaintingStyle.stroke
+          ..color = color
+          ..strokeWidth = stroke / scale
+          ..strokeCap = StrokeCap.round
+          ..strokeJoin = StrokeJoin.round
+          ..isAntiAlias = true,
+      );
+    } else {
+      canvas.drawPath(
+        path,
+        Paint()
+          ..style = PaintingStyle.stroke
+          ..color = color
+          // divided by scale so the on-screen width is `stroke` px at any size
+          ..strokeWidth = stroke / scale
+          ..strokeCap = StrokeCap.round
+          ..strokeJoin = StrokeJoin.round
+          ..isAntiAlias = true,
+      );
+    }
     canvas.restore();
   }
 
   @override
   bool shouldRepaint(_GwIconPainter old) =>
-      old.data != data || old.color != color || old.stroke != stroke;
+      old.data != data || old.color != color || old.stroke != stroke || old.fill != fill;
+}
+
+/// Solid amber hazard triangle with the exclamation punched through it.
+///
+/// Used wherever a scan contains hazardous items — a filled shape reads as a
+/// warning at a glance in a way the outline version does not.
+class GwHazardIcon extends StatelessWidget {
+  final double size;
+  final Color? color;
+  final Color? markColor;
+
+  const GwHazardIcon({super.key, this.size = 20, this.color, this.markColor});
+
+  @override
+  Widget build(BuildContext context) {
+    final fill = color ?? const Color(0xFFF59E0B);
+    final mark = markColor ?? GwTheme.of(context).bg;
+    return SizedBox(
+      width: size,
+      height: size,
+      child: Stack(
+        alignment: Alignment.center,
+        children: [
+          GwIcon(GwIcons.alertBody, size: size, color: fill, fill: true, strokeWidth: 1.4),
+          GwIcon(GwIcons.alertMark, size: size, color: mark,
+              strokeWidth: size <= 18 ? 1.9 : 2.1),
+        ],
+      ),
+    );
+  }
 }
 
 /// Renders a [GwIcons] glyph at [size], stroked in [color].
@@ -263,8 +323,10 @@ class GwIcon extends StatelessWidget {
   final double size;
   final Color? color;
   final double? strokeWidth;
+  final bool fill;
 
-  const GwIcon(this.icon, {super.key, this.size = 20, this.color, this.strokeWidth});
+  const GwIcon(this.icon,
+      {super.key, this.size = 20, this.color, this.strokeWidth, this.fill = false});
 
   @override
   Widget build(BuildContext context) {
@@ -277,7 +339,7 @@ class GwIcon extends StatelessWidget {
       height: size,
       child: CustomPaint(
         size: Size(size, size),
-        painter: _GwIconPainter(icon, c, sw),
+        painter: _GwIconPainter(icon, c, sw, fill: fill),
       ),
     );
   }

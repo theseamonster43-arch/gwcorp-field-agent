@@ -225,6 +225,7 @@ class IosHomeScreen extends StatelessWidget {
               ),
               GwStatTile(
                 icon: GwIcons.alert,
+                iconWidget: GwHazardIcon(size: 15, color: gw.amber),
                 label: 'Hazardous',
                 value: _compact(hazardous),
                 accent: gw.amber,
@@ -301,11 +302,9 @@ class IosHomeScreen extends StatelessWidget {
             color: accent.withOpacity(.16),
             borderRadius: BorderRadius.circular(14),
           ),
-          child: GwIcon(
-            flagged ? GwIcons.alert : GwIcons.checkCircle,
-            size: 20,
-            color: accent,
-          ),
+          child: flagged
+              ? GwHazardIcon(size: 20, color: accent)
+              : GwIcon(GwIcons.checkCircle, size: 20, color: accent),
         ),
         const SizedBox(width: 12),
         Expanded(

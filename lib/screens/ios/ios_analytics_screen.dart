@@ -160,6 +160,7 @@ class IosAnalyticsScreen extends StatelessWidget {
                 ),
                 GwStatTile(
                   icon: GwIcons.alert,
+                  iconWidget: GwHazardIcon(size: 15, color: gw.amber),
                   label: 'Hazardous',
                   value: '$totalHazard',
                   accent: gw.amber,
