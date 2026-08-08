@@ -7,6 +7,7 @@ import 'package:window_manager/window_manager.dart';
 import 'firebase_options.dart';
 import 'theme/gw_theme.dart';
 import 'utils/app_preferences.dart';
+import 'widgets/desktop_chrome.dart';
 import 'screens/splash_screen.dart';
 import 'screens/sign_in_screen.dart';
 import 'screens/ios/ios_sign_in_screen.dart';
@@ -174,6 +175,17 @@ class _GwAppState extends State<GwApp> with WidgetsBindingObserver {
         darkTheme: buildMaterialTheme(GwColors.dark),
         themeMode: _gw.isDark ? ThemeMode.dark : ThemeMode.light,
         routerConfig: _router,
+        // The OS title bar is hidden, so ours has to sit above every route —
+        // splash, sign-in, dialogs and all — or the window cannot be moved,
+        // minimised or closed from those screens.
+        builder: (context, child) {
+          final page = child ?? const SizedBox.shrink();
+          if (!isDesktop) return page;
+          return Column(children: [
+            const DesktopTitleBar(),
+            Expanded(child: page),
+          ]);
+        },
       ),
     );
   }

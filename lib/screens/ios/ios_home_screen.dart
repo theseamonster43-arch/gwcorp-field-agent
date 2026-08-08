@@ -45,7 +45,6 @@ class IosHomeScreen extends StatelessWidget {
     required this.onOpenAnalytics,
     required this.onOpenChats,
     required this.onOpenAi,
-    required this.onOpenAccount,
   });
 
   final List<ScanSession> sessions;
@@ -54,7 +53,6 @@ class IosHomeScreen extends StatelessWidget {
   final VoidCallback onOpenAnalytics;
   final VoidCallback onOpenChats;
   final VoidCallback onOpenAi;
-  final VoidCallback onOpenAccount;
 
   static String _firstName(User? user) {
     final display = user?.displayName?.trim() ?? '';
@@ -122,34 +120,31 @@ class IosHomeScreen extends StatelessWidget {
                 ],
               ),
             ),
+            GwGlassIcon(icon: GwIcons.chat, onTap: onOpenChats),
+            const SizedBox(width: 8),
             GwGlassIcon(icon: GwIcons.sparkle, onTap: onOpenAi),
             const SizedBox(width: 10),
-            // The avatar is how you reach Account — same as the web app, where
-            // it lives in the nav rather than in the tab strip.
-            GestureDetector(
-              behavior: HitTestBehavior.opaque,
-              onTap: onOpenAccount,
-              child: photo != null
-                  ? CircleAvatar(radius: 19, backgroundImage: NetworkImage(photo))
-                  : Container(
-                      width: 38,
-                      height: 38,
-                      alignment: Alignment.center,
-                      decoration: BoxDecoration(
-                        color: gw.green.withOpacity(.18),
-                        shape: BoxShape.circle,
-                        border: Border.all(color: gw.green.withOpacity(.40)),
-                      ),
-                      child: Text(
-                        name.substring(0, 1).toUpperCase(),
-                        style: TextStyle(
-                          color: gw.green,
-                          fontSize: 15,
-                          fontWeight: FontWeight.w800,
-                        ),
-                      ),
-                    ),
-            ),
+            if (photo != null)
+              CircleAvatar(radius: 19, backgroundImage: NetworkImage(photo))
+            else
+              Container(
+                width: 38,
+                height: 38,
+                alignment: Alignment.center,
+                decoration: BoxDecoration(
+                  color: gw.green.withOpacity(.18),
+                  shape: BoxShape.circle,
+                  border: Border.all(color: gw.green.withOpacity(.40)),
+                ),
+                child: Text(
+                  name.substring(0, 1).toUpperCase(),
+                  style: TextStyle(
+                    color: gw.green,
+                    fontSize: 15,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+              ),
           ]),
 
           const SizedBox(height: 18),

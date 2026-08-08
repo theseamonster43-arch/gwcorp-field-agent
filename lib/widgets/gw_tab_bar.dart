@@ -71,7 +71,8 @@ class GwTabBar extends StatelessWidget {
                     _tab(gw, 1, GwIcons.scan),
                     const SizedBox(width: fabSize + 20),
                     _tab(gw, 2, GwIcons.chart),
-                    _tab(gw, 3, GwIcons.chat),
+                    // Slot 3 is the "more" menu, not a screen of its own.
+                    _tab(gw, 3, GwIcons.menu),
                   ]),
                 ),
               ),

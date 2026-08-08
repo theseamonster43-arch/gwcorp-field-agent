@@ -2,7 +2,6 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import '../theme/gw_theme.dart';
-import '../widgets/desktop_chrome.dart';
 
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
@@ -63,7 +62,6 @@ class _SplashScreenState extends State<SplashScreen> with TickerProviderStateMix
     return Scaffold(
       backgroundColor: gw.bg,
       body: Column(children: [
-        const DesktopTitleBar(),
         Expanded(child: Center(
           child: Column(
             mainAxisSize: MainAxisSize.min,

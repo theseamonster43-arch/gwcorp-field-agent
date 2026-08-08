@@ -224,7 +224,6 @@ class _SignInScreenState extends State<SignInScreen> with SingleTickerProviderSt
     return Scaffold(
       backgroundColor: gw.bg,
       body: Column(children: [
-        const DesktopTitleBar(),
         Expanded(child: SafeArea(
           top: !isDesktop,
           child: LayoutBuilder(builder: (ctx, constraints) =>
