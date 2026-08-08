@@ -45,7 +45,6 @@ class _IosAccountScreenState extends State<IosAccountScreen> {
     required String destructiveLabel,
   }) async {
     final gw = GwTheme.of(context);
-    final g = gwGutter(context);
     final ok = await showDialog<bool>(
       context: context,
       builder: (_) => AlertDialog(
@@ -109,6 +108,7 @@ class _IosAccountScreenState extends State<IosAccountScreen> {
   @override
   Widget build(BuildContext context) {
     final gw = GwTheme.of(context);
+    final g = gwGutter(context);
     final me = FirebaseAuth.instance.currentUser;
     final name = me?.displayName?.trim().isNotEmpty == true
         ? me!.displayName!.trim()
