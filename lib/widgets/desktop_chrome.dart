@@ -1,5 +1,6 @@
 import 'dart:io' show Platform;
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:window_manager/window_manager.dart';
 import '../theme/gw_theme.dart';
 
@@ -57,8 +58,10 @@ class _DesktopTitleBarState extends State<DesktopTitleBar> with WindowListener {
                 ),
                 const SizedBox(width: 8),
                 Text('GWCORP Field Agent',
-                    style: TextStyle(color: gw.muted, fontSize: 11,
-                        fontWeight: FontWeight.w600, letterSpacing: 0.2)),
+                    style: GoogleFonts.dmSans(
+                        color: gw.muted, fontSize: 11,
+                        fontWeight: FontWeight.w600, letterSpacing: 0.2,
+                        decoration: TextDecoration.none)),
               ]),
             ),
           ),

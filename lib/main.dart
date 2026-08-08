@@ -182,7 +182,13 @@ class _GwAppState extends State<GwApp> with WidgetsBindingObserver {
           final page = child ?? const SizedBox.shrink();
           if (!isDesktop) return page;
           return Column(children: [
-            const DesktopTitleBar(),
+            // The builder sits above the Navigator, so there is no Material
+            // ancestor here. Without one, Text falls back to the raw engine
+            // default — yellow-underlined and ignoring the theme's DM Sans.
+            const Material(
+              color: Colors.transparent,
+              child: DesktopTitleBar(),
+            ),
             Expanded(child: page),
           ]);
         },
