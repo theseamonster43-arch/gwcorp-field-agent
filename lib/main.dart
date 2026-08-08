@@ -9,11 +9,11 @@ import 'theme/gw_theme.dart';
 import 'utils/app_preferences.dart';
 import 'screens/splash_screen.dart';
 import 'screens/sign_in_screen.dart';
-import 'screens/main_screen.dart';
 import 'screens/ios/ios_sign_in_screen.dart';
 import 'screens/ios/ios_main_screen.dart';
 import 'screens/ios/ios_chats_screen.dart';
 import 'screens/ios/ios_ai_chat_screen.dart';
+import 'screens/desktop/desktop_shell.dart';
 import 'screens/session_detail_screen.dart';
 import 'screens/new_direct_chat_screen.dart';
 import 'screens/direct_chat_detail_screen.dart';
@@ -66,16 +66,18 @@ Page<void> _slidePage(GoRouterState state, Widget child) => CustomTransitionPage
       ),
     );
 
-/// Phones share the glass tab-bar UI in screens/ios. Desktop keeps the
-/// windowed layout, which the floating tab bar is not designed for.
+/// Phones get the bottom tab bar; desktop gets the web app's top-nav layout.
+/// Both drive the same tab screens under screens/ios.
 final bool _isPhone = Platform.isIOS || Platform.isAndroid;
 
 final _router = GoRouter(
   initialLocation: '/splash',
   routes: [
     GoRoute(path: '/splash',  pageBuilder: (_, s) => _fadePage(s, const SplashScreen())),
+    // Desktop keeps its own sign-in: it carries DesktopTitleBar, and the
+    // window has no OS title bar to drag or close without it.
     GoRoute(path: '/signin',  pageBuilder: (_, s) => _fadePage(s, _isPhone ? const IosSignInScreen() : const SignInScreen())),
-    GoRoute(path: '/main',    pageBuilder: (_, s) => _fadePage(s, _isPhone ? const IosMainScreen()    : const MainScreen())),
+    GoRoute(path: '/main',    pageBuilder: (_, s) => _fadePage(s, _isPhone ? const IosMainScreen() : const DesktopShell())),
     GoRoute(
       path: '/main/session/:id',
       pageBuilder: (_, s) => _slidePage(s,
