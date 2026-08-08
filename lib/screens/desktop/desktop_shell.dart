@@ -33,15 +33,17 @@ class _DesktopShellState extends State<DesktopShell>
   StreamSubscription<List<ScanSession>>? _sessionSub;
   StreamSubscription<User?>? _authSub;
 
-  late final AnimationController _page = AnimationController(
-    vsync: this,
-    duration: const Duration(milliseconds: 300),
-    value: 1,
-  );
+  /// Drives the fade-and-rise on tab swap, same as the phone shell.
+  late final AnimationController _page;
 
   @override
   void initState() {
     super.initState();
+    _page = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 260),
+      value: 1, // first paint is already settled
+    );
     _authSub = FirebaseAuth.instance.authStateChanges().listen((_) {
       if (mounted) setState(() {});
     });
@@ -66,7 +68,6 @@ class _DesktopShellState extends State<DesktopShell>
 
   @override
   Widget build(BuildContext context) {
-    final fade = CurvedAnimation(parent: _page, curve: Curves.easeOut);
     return Scaffold(
       backgroundColor: Colors.transparent,
       body: GwScreenBg(
@@ -76,18 +77,22 @@ class _DesktopShellState extends State<DesktopShell>
             child: Center(
               child: ConstrainedBox(
                 constraints: const BoxConstraints(maxWidth: _maxContentWidth),
-                child: FadeTransition(
-                  opacity: fade,
-                  child: SlideTransition(
-                    position: Tween<Offset>(
-                      begin: const Offset(0, .035),
-                      end: Offset.zero,
-                    ).animate(
-                      CurvedAnimation(parent: _page, curve: Curves.easeOutCubic),
-                    ),
-                    // IndexedStack keeps every tab alive, so scroll offsets and
-                    // Firestore listeners survive switching.
-                    child: IndexedStack(
+                child: AnimatedBuilder(
+                  animation: _page,
+                  builder: (_, child) {
+                    final t = Curves.easeOut.transform(_page.value);
+                    return Opacity(
+                      opacity: t,
+                      child: Transform.translate(
+                        offset: Offset(0, 10 * (1 - t)),
+                        child: child,
+                      ),
+                    );
+                  },
+                  // Built once and reused across frames — IndexedStack keeps
+                  // every tab alive, so scroll offsets and Firestore listeners
+                  // survive switching.
+                  child: IndexedStack(
                       index: _tab,
                       children: [
                         IosHomeScreen(
@@ -107,7 +112,6 @@ class _DesktopShellState extends State<DesktopShell>
                         const IosAiChatScreen(showBack: false),
                         const IosAccountScreen(),
                       ],
-                    ),
                   ),
                 ),
               ),
