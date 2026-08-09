@@ -11,16 +11,33 @@ import '../data/models.dart';
 class ClaudeService {
   static final _fn = FirebaseFunctions.instance.httpsCallable('claude');
 
+  /// Why the last call failed, in words a field agent can act on. Null after a
+  /// success. Callers show this instead of failing silently.
+  static String? lastError;
+
   static Future<String?> _call(Map<String, dynamic> payload) async {
     try {
       final res = await _fn.call<Map<String, dynamic>>(payload);
+      lastError = null;
       final text = res.data['text'];
       return text is String ? text : null;
     } on FirebaseFunctionsException catch (e) {
+      lastError = switch (e.code) {
+        'not-found' =>
+          'AI is not set up yet — the claude Cloud Function has not been deployed.',
+        'unauthenticated' => 'Please sign in again.',
+        'resource-exhausted' =>
+          e.message ?? 'Hourly AI limit reached. Try again later.',
+        'invalid-argument' => e.message ?? 'That request was rejected.',
+        _ => 'AI request failed. Check your connection and try again.',
+      };
       // ignore: avoid_print
-      print('ClaudeService: ${e.code} ${e.message}');
+      print('ClaudeService: ${e.code} — ${e.message}');
       return null;
-    } catch (_) {
+    } catch (e) {
+      lastError = 'AI request failed. Check your connection and try again.';
+      // ignore: avoid_print
+      print('ClaudeService: $e');
       return null;
     }
   }

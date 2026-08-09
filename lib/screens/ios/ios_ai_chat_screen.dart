@@ -34,7 +34,15 @@ class _IosAiChatScreenState extends State<IosAiChatScreen> {
     final reply = await ClaudeService.chat(systemContext: _system, messages: List.from(_msgs));
     if (mounted) {
       setState(() {
-        if (reply != null) _msgs.add({'role': 'assistant', 'content': reply});
+        // Always append an assistant turn, even on failure. Leaving the user's
+        // message unanswered would make the next send post two user turns in a
+        // row, which the Messages API rejects — the chat would stay broken for
+        // the rest of the session instead of just for this message.
+        _msgs.add({
+          'role': 'assistant',
+          'content': reply ??
+              (ClaudeService.lastError ?? 'AI is unavailable right now.'),
+        });
         _loading = false;
       });
       _scrollBottom();
