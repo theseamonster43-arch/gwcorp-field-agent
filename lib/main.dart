@@ -8,6 +8,7 @@ import 'firebase_options.dart';
 import 'theme/gw_theme.dart';
 import 'utils/app_preferences.dart';
 import 'widgets/desktop_chrome.dart';
+import 'widgets/desktop_rail.dart';
 import 'screens/splash_screen.dart';
 import 'screens/sign_in_screen.dart';
 import 'screens/ios/ios_sign_in_screen.dart';
@@ -122,6 +123,10 @@ class _GwAppState extends State<GwApp> with WidgetsBindingObserver {
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
+    // The desktop chrome renders above the router and has no GoRouter in its
+    // context, so hand it the router's navigation methods.
+    gwGo   = _router.go;
+    gwPush = _router.push;
     themeModeNotifier.addListener(_onPreferenceChange);
     _gw = _resolveColors();
     _applyStatusBar(_gw);
@@ -181,16 +186,25 @@ class _GwAppState extends State<GwApp> with WidgetsBindingObserver {
         builder: (context, child) {
           final page = child ?? const SizedBox.shrink();
           if (!isDesktop) return page;
-          return Column(children: [
-            // The builder sits above the Navigator, so there is no Material
-            // ancestor here. Without one, Text falls back to the raw engine
-            // default — yellow-underlined and ignoring the theme's DM Sans.
-            const Material(
-              color: Colors.transparent,
-              child: DesktopTitleBar(),
-            ),
-            Expanded(child: page),
-          ]);
+          // The title bar and rail are chrome, not part of any route, so they
+          // live here — above the Navigator. That is what keeps the rail on
+          // screen while a scan or session detail is pushed over the shell.
+          //
+          // Nothing here may use Navigator, Overlay or GoRouter from this
+          // context, and Text needs a Material ancestor or it renders with the
+          // raw engine default: yellow-underlined, ignoring the theme.
+          return Material(
+            color: Colors.transparent,
+            child: Column(children: [
+              const DesktopTitleBar(),
+              Expanded(
+                child: Row(children: [
+                  const DesktopRail(),
+                  Expanded(child: page),
+                ]),
+              ),
+            ]),
+          );
         },
       ),
     );

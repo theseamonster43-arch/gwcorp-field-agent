@@ -9,13 +9,35 @@ import '../theme/gw_theme.dart';
 bool get isDesktop =>
     Platform.isWindows || Platform.isLinux || Platform.isMacOS;
 
-/// Lets the title bar drive the desktop shell's tabs. The bar renders above
-/// the router, so it has no route to push — it raises a request and
-/// [DesktopShell] answers it. -1 means "nothing pending".
-final ValueNotifier<int> desktopTabRequest = ValueNotifier<int>(-1);
+/// The desktop chrome (title bar and rail) renders in MaterialApp.builder,
+/// above the Navigator, so it outlives every route — that is what keeps the
+/// rail on screen while a scan or session detail is pushed.
+///
+/// Being above the router also means it cannot use Navigator, Overlay or
+/// GoRouter from its own context, hence this shared state and the two
+/// navigation hooks that main.dart wires up.
 
-/// Tab index of the Account screen in [DesktopShell].
-const int kDesktopAccountTab = 5;
+/// Currently selected desktop tab. The rail writes it, DesktopShell renders it.
+final ValueNotifier<int> desktopTab = ValueNotifier<int>(0);
+
+/// Tab indices in [DesktopShell].
+const int kDesktopHomeTab      = 0;
+const int kDesktopScansTab     = 1;
+const int kDesktopStatsTab     = 2;
+const int kDesktopChatsTab     = 3;
+const int kDesktopAiTab        = 4;
+const int kDesktopAccountTab   = 5;
+
+/// Set by main.dart. Navigation for chrome that sits above the router.
+void Function(String route)? gwGo;
+void Function(String route)? gwPush;
+
+/// Switches tab and makes sure the shell is what is on screen — tapping the
+/// rail from inside a pushed route has to come back to /main first.
+void gwSelectDesktopTab(int index) {
+  desktopTab.value = index;
+  gwGo?.call('/main');
+}
 
 class DesktopTitleBar extends StatefulWidget {
   const DesktopTitleBar({super.key});
@@ -113,7 +135,7 @@ class _DesktopTitleBarState extends State<DesktopTitleBar> with WindowListener {
           MouseRegion(
             cursor: SystemMouseCursors.click,
             child: GestureDetector(
-              onTap: () => desktopTabRequest.value = kDesktopAccountTab,
+              onTap: () => gwSelectDesktopTab(kDesktopAccountTab),
               child: CircleAvatar(radius: 13, backgroundImage: NetworkImage(photo)),
             ),
           ),
