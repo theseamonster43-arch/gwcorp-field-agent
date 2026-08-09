@@ -72,8 +72,24 @@ Page<void> _slidePage(GoRouterState state, Widget child) => CustomTransitionPage
 /// Both drive the same tab screens under screens/ios.
 final bool _isPhone = Platform.isIOS || Platform.isAndroid;
 
+/// Routes that get bare chrome — window buttons only, no branding or rail.
+const _bareChromeRoutes = {'/splash', '/signin'};
+
 final _router = GoRouter(
   initialLocation: '/splash',
+  // Never actually redirects; this is the one hook that sees every navigation,
+  // and the desktop chrome sits above the router so it cannot observe routes
+  // on its own. Deferred a frame because notifying listeners mid-navigation
+  // would rebuild them during a build.
+  redirect: (context, state) {
+    final minimal = _bareChromeRoutes.contains(state.matchedLocation);
+    if (gwChromeMinimal.value != minimal) {
+      WidgetsBinding.instance.addPostFrameCallback(
+        (_) => gwChromeMinimal.value = minimal,
+      );
+    }
+    return null;
+  },
   routes: [
     GoRoute(path: '/splash',  pageBuilder: (_, s) => _fadePage(s, const SplashScreen())),
     // Desktop keeps its own sign-in: it carries DesktopTitleBar, and the

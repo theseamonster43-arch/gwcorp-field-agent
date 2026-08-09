@@ -32,6 +32,11 @@ const int kDesktopAccountTab   = 5;
 void Function(String route)? gwGo;
 void Function(String route)? gwPush;
 
+/// True on splash and sign-in: no branding, no rail, just the window buttons.
+/// The chrome is above the router and cannot read the current route itself, so
+/// main.dart keeps this in step with navigation.
+final ValueNotifier<bool> gwChromeMinimal = ValueNotifier<bool>(true);
+
 /// Switches tab and makes sure the shell is what is on screen — tapping the
 /// rail from inside a pushed route has to come back to /main first.
 void gwSelectDesktopTab(int index) {
@@ -81,21 +86,32 @@ class _DesktopTitleBarState extends State<DesktopTitleBar> with WindowListener {
   @override
   Widget build(BuildContext context) {
     if (!isDesktop) return const SizedBox.shrink();
+    return ValueListenableBuilder<bool>(
+      valueListenable: gwChromeMinimal,
+      builder: (context, minimal, _) => _bar(context, minimal),
+    );
+  }
+
+  Widget _bar(BuildContext context, bool minimal) {
     final gw = GwTheme.of(context);
     final photo = FirebaseAuth.instance.currentUser?.photoURL;
 
     return Container(
       height: 46,
       decoration: BoxDecoration(
-        color: gw.bg2,
-        border: Border(bottom: BorderSide(color: gw.border)),
+        color: minimal ? Colors.transparent : gw.bg2,
+        border: minimal
+            ? null
+            : Border(bottom: BorderSide(color: gw.border)),
       ),
       child: Row(children: [
         Expanded(
           child: DragToMoveArea(
             child: Padding(
               padding: const EdgeInsets.symmetric(horizontal: 18),
-              child: Row(children: [
+              child: minimal
+                  ? const SizedBox.expand()
+                  : Row(children: [
                 Container(
                   width: 7, height: 7,
                   decoration: BoxDecoration(
@@ -129,7 +145,7 @@ class _DesktopTitleBarState extends State<DesktopTitleBar> with WindowListener {
             ),
           ),
         ),
-        if (photo != null && photo.isNotEmpty) ...[
+        if (!minimal && photo != null && photo.isNotEmpty) ...[
           // No Tooltip here: this bar is built in MaterialApp.builder, above
           // the Navigator, so there is no Overlay ancestor for one to mount in.
           MouseRegion(

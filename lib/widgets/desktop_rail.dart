@@ -17,14 +17,19 @@ class DesktopRail extends StatelessWidget {
     if (!isDesktop) return const SizedBox.shrink();
     final gw = GwTheme.of(context);
 
-    // Splash and sign-in have nothing to navigate to yet, so the rail only
-    // appears once there is a signed-in agent.
-    return StreamBuilder<User?>(
-      stream: FirebaseAuth.instance.authStateChanges(),
-      initialData: FirebaseAuth.instance.currentUser,
-      builder: (context, snap) {
-        if (snap.data == null) return const SizedBox.shrink();
-        return _rail(gw);
+    // Hidden on splash and sign-in. Checking auth alone is not enough — a
+    // returning agent is already signed in while the splash screen shows, so
+    // the rail would flash up over it.
+    return ValueListenableBuilder<bool>(
+      valueListenable: gwChromeMinimal,
+      builder: (context, minimal, _) {
+        if (minimal) return const SizedBox.shrink();
+        return StreamBuilder<User?>(
+          stream: FirebaseAuth.instance.authStateChanges(),
+          initialData: FirebaseAuth.instance.currentUser,
+          builder: (context, snap) =>
+              snap.data == null ? const SizedBox.shrink() : _rail(gw),
+        );
       },
     );
   }
