@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import '../../data/history_repository.dart';
 import '../../data/models.dart';
 import '../../theme/gw_theme.dart';
+import '../../widgets/desktop_chrome.dart';
 import '../../widgets/gw_glass.dart';
 import '../../widgets/gw_icons.dart';
 import '../ios/ios_home_screen.dart';
@@ -50,10 +51,21 @@ class _DesktopShellState extends State<DesktopShell>
     _sessionSub = HistoryRepository.sessionsStream().listen((s) {
       if (mounted) setState(() => _sessions = s);
     });
+    desktopTabRequest.addListener(_onTabRequest);
+  }
+
+  /// The title bar sits above the router and cannot push a route, so it raises
+  /// a tab request instead — that is how its avatar opens Account.
+  void _onTabRequest() {
+    final want = desktopTabRequest.value;
+    if (want < 0) return;
+    desktopTabRequest.value = -1; // clear before switching, so it fires once
+    if (mounted) _goTab(want);
   }
 
   @override
   void dispose() {
+    desktopTabRequest.removeListener(_onTabRequest);
     _page.dispose();
     _sessionSub?.cancel();
     _authSub?.cancel();

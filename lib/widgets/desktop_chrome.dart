@@ -9,6 +9,14 @@ import '../theme/gw_theme.dart';
 bool get isDesktop =>
     Platform.isWindows || Platform.isLinux || Platform.isMacOS;
 
+/// Lets the title bar drive the desktop shell's tabs. The bar renders above
+/// the router, so it has no route to push — it raises a request and
+/// [DesktopShell] answers it. -1 means "nothing pending".
+final ValueNotifier<int> desktopTabRequest = ValueNotifier<int>(-1);
+
+/// Tab index of the Account screen in [DesktopShell].
+const int kDesktopAccountTab = 5;
+
 class DesktopTitleBar extends StatefulWidget {
   const DesktopTitleBar({super.key});
   @override
@@ -100,7 +108,16 @@ class _DesktopTitleBarState extends State<DesktopTitleBar> with WindowListener {
           ),
         ),
         if (photo != null && photo.isNotEmpty) ...[
-          CircleAvatar(radius: 13, backgroundImage: NetworkImage(photo)),
+          Tooltip(
+            message: 'Account',
+            child: MouseRegion(
+              cursor: SystemMouseCursors.click,
+              child: GestureDetector(
+                onTap: () => desktopTabRequest.value = kDesktopAccountTab,
+                child: CircleAvatar(radius: 13, backgroundImage: NetworkImage(photo)),
+              ),
+            ),
+          ),
           const SizedBox(width: 14),
         ],
         _Win11Btn(
