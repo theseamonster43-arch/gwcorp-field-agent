@@ -108,14 +108,13 @@ class _DesktopTitleBarState extends State<DesktopTitleBar> with WindowListener {
           ),
         ),
         if (photo != null && photo.isNotEmpty) ...[
-          Tooltip(
-            message: 'Account',
-            child: MouseRegion(
-              cursor: SystemMouseCursors.click,
-              child: GestureDetector(
-                onTap: () => desktopTabRequest.value = kDesktopAccountTab,
-                child: CircleAvatar(radius: 13, backgroundImage: NetworkImage(photo)),
-              ),
+          // No Tooltip here: this bar is built in MaterialApp.builder, above
+          // the Navigator, so there is no Overlay ancestor for one to mount in.
+          MouseRegion(
+            cursor: SystemMouseCursors.click,
+            child: GestureDetector(
+              onTap: () => desktopTabRequest.value = kDesktopAccountTab,
+              child: CircleAvatar(radius: 13, backgroundImage: NetworkImage(photo)),
             ),
           ),
           const SizedBox(width: 14),
