@@ -1,4 +1,6 @@
+import 'dart:async';
 import 'dart:io' show Platform;
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:window_manager/window_manager.dart';
@@ -15,16 +17,23 @@ class DesktopTitleBar extends StatefulWidget {
 
 class _DesktopTitleBarState extends State<DesktopTitleBar> with WindowListener {
   bool _isMaximized = false;
+  StreamSubscription<User?>? _authSub;
 
   @override
   void initState() {
     super.initState();
     windowManager.addListener(this);
     _checkMaximized();
+    // The bar renders above the router and never rebuilds on navigation, so
+    // without this the avatar would stay missing after signing in.
+    _authSub = FirebaseAuth.instance.authStateChanges().listen((_) {
+      if (mounted) setState(() {});
+    });
   }
 
   @override
   void dispose() {
+    _authSub?.cancel();
     windowManager.removeListener(this);
     super.dispose();
   }
@@ -43,29 +52,57 @@ class _DesktopTitleBarState extends State<DesktopTitleBar> with WindowListener {
   Widget build(BuildContext context) {
     if (!isDesktop) return const SizedBox.shrink();
     final gw = GwTheme.of(context);
+    final photo = FirebaseAuth.instance.currentUser?.photoURL;
+
     return Container(
-      height: 32,
-      color: gw.bg2,
+      height: 46,
+      decoration: BoxDecoration(
+        color: gw.bg2,
+        border: Border(bottom: BorderSide(color: gw.border)),
+      ),
       child: Row(children: [
         Expanded(
           child: DragToMoveArea(
             child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16),
+              padding: const EdgeInsets.symmetric(horizontal: 18),
               child: Row(children: [
                 Container(
-                  width: 6, height: 6,
-                  decoration: BoxDecoration(color: gw.green, shape: BoxShape.circle),
+                  width: 7, height: 7,
+                  decoration: BoxDecoration(
+                    color: gw.green,
+                    shape: BoxShape.circle,
+                    boxShadow: [
+                      BoxShadow(color: gw.green.withOpacity(.7), blurRadius: 8),
+                    ],
+                  ),
                 ),
-                const SizedBox(width: 8),
-                Text('GWCORP Field Agent',
+                const SizedBox(width: 9),
+                Text('GWCORP',
                     style: GoogleFonts.dmSans(
-                        color: gw.muted, fontSize: 11,
-                        fontWeight: FontWeight.w600, letterSpacing: 0.2,
+                        color: gw.text, fontSize: 15,
+                        fontWeight: FontWeight.w800, letterSpacing: -0.2,
                         decoration: TextDecoration.none)),
+                const SizedBox(width: 14),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 4),
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(99),
+                    border: Border.all(color: gw.green.withOpacity(.35)),
+                  ),
+                  child: Text('FIELD AGENT',
+                      style: GoogleFonts.dmSans(
+                          color: gw.green, fontSize: 10,
+                          fontWeight: FontWeight.w700, letterSpacing: 1.1,
+                          decoration: TextDecoration.none)),
+                ),
               ]),
             ),
           ),
         ),
+        if (photo != null && photo.isNotEmpty) ...[
+          CircleAvatar(radius: 13, backgroundImage: NetworkImage(photo)),
+          const SizedBox(width: 14),
+        ],
         _Win11Btn(
           type: _BtnType.minimize,
           onTap: () => windowManager.minimize(),
@@ -119,13 +156,13 @@ class _Win11BtnState extends State<_Win11Btn> {
       child: GestureDetector(
         onTap: widget.onTap,
         child: SizedBox(
-          width: 46, height: 32,
+          width: 46, height: 46,
           child: Stack(alignment: Alignment.center, children: [
             // Win11-style hover background
             if (isClose)
               AnimatedContainer(
                 duration: const Duration(milliseconds: 80),
-                width: 46, height: 32,
+                width: 46, height: 46,
                 color: _hover ? const Color(0xFFC42B1C) : Colors.transparent,
               )
             else
