@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'dart:io';
-import 'package:cloud_functions/cloud_functions.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:http/http.dart' as http;
 import '../data/models.dart';
 
 /// All Claude traffic goes through the `claude` Cloud Function.
@@ -9,7 +10,12 @@ import '../data/models.dart';
 /// compiled into the app, so it cannot be recovered by unpacking the binary
 /// the way a `String.fromEnvironment` key could.
 class ClaudeService {
-  static final _fn = FirebaseFunctions.instance.httpsCallable('claude');
+  /// The Claude proxy that holds the Anthropic key. Override at build time:
+  ///   flutter build windows --dart-define=GW_AI_ENDPOINT=https://...
+  static const _endpoint = String.fromEnvironment(
+    'GW_AI_ENDPOINT',
+    defaultValue: 'https://gwcorp-claude.workers.dev',
+  );
 
   /// Why the last call failed, in words a field agent can act on. Null after a
   /// success. Callers show this instead of failing silently.
@@ -17,22 +23,39 @@ class ClaudeService {
 
   static Future<String?> _call(Map<String, dynamic> payload) async {
     try {
-      final res = await _fn.call<Map<String, dynamic>>(payload);
-      lastError = null;
-      final text = res.data['text'];
-      return text is String ? text : null;
-    } on FirebaseFunctionsException catch (e) {
-      lastError = switch (e.code) {
-        'not-found' =>
-          'AI is not set up yet — the claude Cloud Function has not been deployed.',
-        'unauthenticated' => 'Please sign in again.',
-        'resource-exhausted' =>
-          e.message ?? 'Hourly AI limit reached. Try again later.',
-        'invalid-argument' => e.message ?? 'That request was rejected.',
-        _ => 'AI request failed. Check your connection and try again.',
+      final user = FirebaseAuth.instance.currentUser;
+      if (user == null) {
+        lastError = 'Please sign in to use AI.';
+        return null;
+      }
+      final token = await user.getIdToken();
+
+      final res = await http.post(
+        Uri.parse(_endpoint),
+        headers: {
+          'Authorization': 'Bearer $token',
+          'Content-Type':  'application/json',
+        },
+        body: jsonEncode(payload),
+      );
+
+      final body = jsonDecode(res.body) as Map<String, dynamic>;
+
+      if (res.statusCode == 200) {
+        lastError = null;
+        final text = body['text'];
+        return text is String ? text : null;
+      }
+
+      lastError = switch (res.statusCode) {
+        401 => 'Please sign in again.',
+        400 => (body['message'] as String?) ?? 'That request was rejected.',
+        429 => (body['message'] as String?) ?? 'AI is busy. Try again shortly.',
+        404 => 'AI is not set up yet — the proxy has not been deployed.',
+        _   => 'AI request failed. Try again.',
       };
       // ignore: avoid_print
-      print('ClaudeService: ${e.code} — ${e.message}');
+      print('ClaudeService: HTTP ${res.statusCode} — ${res.body}');
       return null;
     } catch (e) {
       lastError = 'AI request failed. Check your connection and try again.';
