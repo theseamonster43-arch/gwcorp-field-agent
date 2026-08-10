@@ -25,24 +25,57 @@ class ScanSession {
     this.imageUrls = const [],
   });
 
-  factory ScanSession.fromMap(Map<String, dynamic> map, String docId) => ScanSession(
-        id: docId,
-        location: map['location'] ?? '',
-        date: map['date'] ?? '',
-        itemCount: map['itemCount'] ?? 0,
-        hazardCount: map['hazardCount'] ?? 0,
-        recyclableCount: map['recyclableCount'] ?? 0,
-        userEmail: map['userEmail'] ?? '',
-        imageUrls: List<String>.from(map['imageUrls'] ?? []),
-        timestamp: map['timestamp'] is Timestamp
-            ? (map['timestamp'] as Timestamp).toDate()
-            : map['timestamp'] is int
-                ? DateTime.fromMillisecondsSinceEpoch(map['timestamp'] as int)
-                : null,
-        items: (map['items'] as List<dynamic>? ?? [])
-            .map((i) => ClassificationResult.fromMap(i as Map<String, dynamic>))
-            .toList(),
-      );
+  /// Reads a session written by either client.
+  ///
+  /// The web app (public/field-agent.html) stores `results` and `recyclePct`;
+  /// this app stores `items` and `recyclableCount`. Without accepting both,
+  /// every scan made on the website shows up here with no items and zero
+  /// recyclables, which silently wrecks the analytics.
+  factory ScanSession.fromMap(Map<String, dynamic> map, String docId) {
+    final rawItems = (map['items'] ?? map['results']) as List<dynamic>? ?? [];
+    final items = rawItems
+        .whereType<Map<String, dynamic>>()
+        .map(ClassificationResult.fromMap)
+        .toList();
+
+    final itemCount = (map['itemCount'] as num?)?.toInt() ?? items.length;
+
+    // recyclableCount if present, else derive it from the web's percentage,
+    // else count the flags on the items themselves.
+    int recyclable;
+    if (map['recyclableCount'] is num) {
+      recyclable = (map['recyclableCount'] as num).toInt();
+    } else if (map['recyclePct'] is num) {
+      recyclable = ((map['recyclePct'] as num) * itemCount / 100).round();
+    } else {
+      recyclable = items.where((i) => i.recyclable).length;
+    }
+
+    final hazard = (map['hazardCount'] as num?)?.toInt() ??
+        items
+            .where((i) =>
+                i.hazardLevel.isNotEmpty &&
+                i.hazardLevel.toLowerCase() != 'none')
+            .length;
+
+    return ScanSession(
+      id: docId,
+      location: map['location'] ?? '',
+      date: map['date'] ?? '',
+      itemCount: itemCount,
+      hazardCount: hazard,
+      recyclableCount: recyclable,
+      userEmail: map['userEmail'] ?? '',
+      imageUrls: List<String>.from(map['imageUrls'] ?? []),
+      timestamp: map['timestamp'] is Timestamp
+          ? (map['timestamp'] as Timestamp).toDate()
+          : map['timestamp'] is num
+              ? DateTime.fromMillisecondsSinceEpoch(
+                  (map['timestamp'] as num).toInt())
+              : null,
+      items: items,
+    );
+  }
 
   Map<String, dynamic> toMap() => {
         'id': id,
