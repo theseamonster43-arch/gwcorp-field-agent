@@ -667,7 +667,9 @@ class _IosSatelliteScreenState extends State<IosSatelliteScreen> {
 
         // Route / selection card
 
-        if (_navigating && !_voiceOpen)
+        // The turn instruction stays up while the assistant is open — asking a
+        // question should never cost you the next manoeuvre.
+        if (_navigating)
           Positioned(
             top: MediaQuery.of(context).padding.top + 8,
             left: 12,
