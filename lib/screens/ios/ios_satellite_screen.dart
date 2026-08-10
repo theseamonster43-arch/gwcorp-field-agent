@@ -190,6 +190,20 @@ class _IosSatelliteScreenState extends State<IosSatelliteScreen> {
     ));
   }
 
+  /// Snaps the camera back to the agent. During guidance it also re-locks
+  /// the follow view, which is the usual reason you reach for it after
+  /// panning away to look ahead.
+  Future<void> _recenter() async {
+    final pos = _pos;
+    if (pos == null) return;
+    await _map?.animateCamera(CameraUpdate.newCameraPosition(CameraPosition(
+      target: LatLng(pos.latitude, pos.longitude),
+      zoom: _navigating ? 17 : 15,
+      tilt: _navigating ? 45 : 0,
+      bearing: _navigating ? pos.heading : 0,
+    )));
+  }
+
   void _clearRoute() => setState(() {
         _selected = null;
         _route = null;
@@ -424,7 +438,9 @@ class _IosSatelliteScreenState extends State<IosSatelliteScreen> {
         // Search + attach, floating over the map
         if (!_navigating) Positioned(
           top: top + 8, left: 12, right: 12,
-          child: Column(children: [
+          child: _SlideFadeIn(
+            from: const Offset(0, -0.3),
+            child: Column(children: [
             Row(children: [
               if (widget.showBack) ...[
                 GwGlassIcon(icon: GwIcons.chevronLeft, size: 16,
@@ -473,20 +489,42 @@ class _IosSatelliteScreenState extends State<IosSatelliteScreen> {
               GwGlassIcon(icon: GwIcons.plus, size: 18, onTap: _pickScans),
             ]),
 
-            if (_listOpen) ...[
-              const SizedBox(height: 8),
-              _dropdown(gw),
-            ],
+            AnimatedSwitcher(
+              duration: const Duration(milliseconds: 260),
+              switchInCurve: Curves.easeOutCubic,
+              transitionBuilder: (child, anim) => FadeTransition(
+                opacity: anim,
+                child: SizeTransition(
+                  sizeFactor: anim, axisAlignment: -1, child: child),
+              ),
+              child: _listOpen
+                  ? Padding(
+                      key: const ValueKey('open'),
+                      padding: const EdgeInsets.only(top: 8),
+                      child: _dropdown(gw),
+                    )
+                  : const SizedBox(width: double.infinity, key: ValueKey('shut')),
+            ),
             if (_attached.isNotEmpty && !_listOpen) ...[
               const SizedBox(height: 8),
               _askBar(gw),
             ],
           ]),
+          ),
         ),
 
         // Route / selection card
         if (_selected != null && !_navigating)
-          Positioned(left: 12, right: 12, bottom: barGap + 16, child: _routeCard(gw)),
+          Positioned(
+            left: 12, right: 12, bottom: barGap + 16,
+            // Keyed on the site so picking a different one replays the
+            // entrance rather than swapping text in place.
+            child: _SlideFadeIn(
+              key: ValueKey(_selected!.id),
+              from: const Offset(0, 0.35),
+              child: _routeCard(gw),
+            ),
+          ),
 
         if (_navigating) ...[
           Positioned(
@@ -499,6 +537,16 @@ class _IosSatelliteScreenState extends State<IosSatelliteScreen> {
             child: _SlideFadeIn(from: const Offset(0, 0.35), child: _guidanceFooter(gw)),
           ),
         ],
+
+        if (_mapSupported && _pos != null)
+          Positioned(
+            right: 16,
+            bottom: barGap + (_selected != null || _navigating ? 156 : 26),
+            child: _SlideFadeIn(
+              from: const Offset(0.4, 0),
+              child: _RecenterButton(onTap: _recenter),
+            ),
+          ),
 
         if (_loading && _sites.isEmpty)
           Positioned(
@@ -890,7 +938,7 @@ class _IosSatelliteScreenState extends State<IosSatelliteScreen> {
 class _SlideFadeIn extends StatefulWidget {
   final Widget child;
   final Offset from;
-  const _SlideFadeIn({required this.child, required this.from});
+  const _SlideFadeIn({super.key, required this.child, required this.from});
 
   @override
   State<_SlideFadeIn> createState() => _SlideFadeInState();
@@ -918,6 +966,41 @@ class _SlideFadeInState extends State<_SlideFadeIn>
         position: Tween<Offset>(begin: widget.from, end: Offset.zero)
             .animate(curve),
         child: widget.child,
+      ),
+    );
+  }
+}
+
+/// Glass circle that returns the camera to the agent.
+class _RecenterButton extends StatefulWidget {
+  final VoidCallback onTap;
+  const _RecenterButton({required this.onTap});
+
+  @override
+  State<_RecenterButton> createState() => _RecenterButtonState();
+}
+
+class _RecenterButtonState extends State<_RecenterButton> {
+  bool _down = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final gw = GwTheme.of(context);
+    return GestureDetector(
+      onTapDown: (_) => setState(() => _down = true),
+      onTapUp: (_) => setState(() => _down = false),
+      onTapCancel: () => setState(() => _down = false),
+      onTap: widget.onTap,
+      child: AnimatedScale(
+        scale: _down ? 0.88 : 1.0,
+        duration: const Duration(milliseconds: 130),
+        curve: Curves.easeOut,
+        child: GwGlass(
+          radius: 99,
+          blur: 24,
+          padding: const EdgeInsets.all(13),
+          child: GwIcon(GwIcons.pin, size: 20, color: gw.green),
+        ),
       ),
     );
   }
