@@ -29,6 +29,11 @@ class GwTabBar extends StatelessWidget {
   /// Slack above the centre button for its grow-on-press animation.
   static const double _pressHeadroom = 6;
 
+  /// Total space this bar occupies, safe-area included. Full-bleed screens ask
+  /// for it so their content stops at the bar instead of running under it.
+  static double totalHeight(BuildContext context) =>
+      barHeight + MediaQuery.of(context).padding.bottom + _raise + _pressHeadroom;
+
   @override
   Widget build(BuildContext context) {
     final gw = GwTheme.of(context);

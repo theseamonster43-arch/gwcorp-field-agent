@@ -10,6 +10,7 @@ import '../../services/disposal_service.dart';
 import '../../theme/gw_theme.dart';
 import '../../widgets/gw_glass.dart';
 import '../../widgets/gw_icons.dart';
+import '../../widgets/gw_tab_bar.dart';
 
 /// Full-bleed satellite map with the search, results and route drawn over it.
 ///
@@ -336,11 +337,16 @@ class _IosSatelliteScreenState extends State<IosSatelliteScreen> {
   Widget build(BuildContext context) {
     final gw = GwTheme.of(context);
     final top = MediaQuery.of(context).padding.top;
+    // Inside the phone shell the floating tab bar overlaps the bottom of the
+    // screen, so the map has to stop above it rather than run underneath.
+    final barGap = (!widget.showBack && _mapSupported)
+        ? GwTabBar.totalHeight(context)
+        : 0.0;
 
     return Scaffold(
       backgroundColor: gw.bg,
       body: Stack(children: [
-        Positioned.fill(child: _mapLayer(gw)),
+        Positioned(top: 0, left: 0, right: 0, bottom: barGap, child: _mapLayer(gw)),
 
         // Search + attach, floating over the map
         Positioned(
@@ -407,11 +413,11 @@ class _IosSatelliteScreenState extends State<IosSatelliteScreen> {
 
         // Route / selection card
         if (_selected != null)
-          Positioned(left: 12, right: 12, bottom: 16, child: _routeCard(gw)),
+          Positioned(left: 12, right: 12, bottom: barGap + 16, child: _routeCard(gw)),
 
         if (_loading && _sites.isEmpty)
           Positioned(
-            bottom: 24, left: 0, right: 0,
+            bottom: barGap + 24, left: 0, right: 0,
             child: Center(child: GwGlass(
               radius: 99,
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
@@ -428,7 +434,7 @@ class _IosSatelliteScreenState extends State<IosSatelliteScreen> {
 
         if (_error != null && _sites.isEmpty)
           Positioned(
-            bottom: 24, left: 24, right: 24,
+            bottom: barGap + 24, left: 24, right: 24,
             child: GwGlass(
               radius: 16,
               padding: const EdgeInsets.all(14),
