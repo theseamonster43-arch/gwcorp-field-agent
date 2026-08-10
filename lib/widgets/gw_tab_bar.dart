@@ -23,6 +23,10 @@ class GwTabBar extends StatelessWidget {
   static const double fabSize = 60;
   static const double topRadius = 14;
 
+  /// Widest the tab cluster is allowed to get. Roughly a large phone, so the
+  /// bar keeps the same proportions on a tablet.
+  static const double maxTabsWidth = 460;
+
   /// How far the centre button pokes above the bar.
   static const double _raise = 15;
 
@@ -71,14 +75,22 @@ class GwTabBar extends StatelessWidget {
                       ),
                     ),
                   ),
-                  child: Row(children: [
-                    _tab(gw, 0, GwIcons.home),
-                    _tab(gw, 1, GwIcons.scan),
-                    const SizedBox(width: fabSize + 20),
-                    _tab(gw, 2, GwIcons.chart),
-                    // Slot 3 is the "more" menu, not a screen of its own.
-                    _tab(gw, 3, GwIcons.menu),
-                  ]),
+                  // Tabs cluster at phone spacing and stay centred. Letting
+                  // them stretch edge to edge on a tablet leaves the icons
+                  // marooned in the corners and puts them out of thumb reach.
+                  child: Center(
+                    child: ConstrainedBox(
+                      constraints: const BoxConstraints(maxWidth: maxTabsWidth),
+                      child: Row(children: [
+                        _tab(gw, 0, GwIcons.home),
+                        _tab(gw, 1, GwIcons.scan),
+                        const SizedBox(width: fabSize + 20),
+                        _tab(gw, 2, GwIcons.chart),
+                        // Slot 3 is the "more" menu, not a screen of its own.
+                        _tab(gw, 3, GwIcons.menu),
+                      ]),
+                    ),
+                  ),
                 ),
               ),
             ),
