@@ -743,13 +743,29 @@ class _IosSatelliteScreenState extends State<IosSatelliteScreen> {
   Widget _guidanceBanner(GwColors gw) {
     final steps = _route?.steps ?? const <RouteStep>[];
     final now = _step < steps.length ? steps[_step] : null;
-    return GwGlass(
-      radius: 18,
-      blur: 30,
+    // Solid green rather than tinted glass: this has to stay readable at a
+    // glance while driving, so the contrast cannot depend on what the map
+    // happens to be showing underneath. White throughout, both themes.
+    return Container(
       padding: const EdgeInsets.all(16),
-      accent: gw.green,
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(18),
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [gw.green, gw.greenDim],
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(.28),
+            blurRadius: 18,
+            offset: const Offset(0, 6),
+          ),
+        ],
+      ),
       child: Row(children: [
-        GwIcon(_maneuverIcon(now?.maneuver ?? ''), size: 26, color: gw.green),
+        GwIcon(_maneuverIcon(now?.maneuver ?? ''),
+            size: 26, color: Colors.white, strokeWidth: 2.4),
         const SizedBox(width: 14),
         Expanded(
           child: Column(
@@ -757,13 +773,14 @@ class _IosSatelliteScreenState extends State<IosSatelliteScreen> {
             mainAxisSize: MainAxisSize.min,
             children: [
               if (now != null)
-                Text(now.distanceLabel, style: TextStyle(
-                    color: gw.green, fontSize: 12, fontWeight: FontWeight.w800)),
+                Text(now.distanceLabel, style: const TextStyle(
+                    color: Colors.white, fontSize: 12,
+                    fontWeight: FontWeight.w800)),
               Text(
                 now?.instruction.isNotEmpty == true
                     ? now!.instruction
                     : 'Continue to ${_selected?.name ?? "destination"}',
-                style: TextStyle(color: gw.text, fontSize: 15,
+                style: const TextStyle(color: Colors.white, fontSize: 15,
                     fontWeight: FontWeight.w700, height: 1.3)),
             ],
           ),
