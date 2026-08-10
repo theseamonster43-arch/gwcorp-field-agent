@@ -222,7 +222,9 @@ class _GwVoicePanelState extends State<GwVoicePanel> {
             children: List.generate(24, (i) {
               // Middle bars react most, giving a waveform rather than a block.
               final centre = 1 - ((i - 11.5).abs() / 11.5);
-              final h = 3 + (_listening ? _level * 23 * (0.35 + centre * 0.65) : 0);
+              // 0.0 not 0, or the ternary types as num and clamp returns num.
+              final double h =
+                  3 + (_listening ? _level * 23 * (0.35 + centre * 0.65) : 0.0);
               return Expanded(
                 child: Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 1.5),

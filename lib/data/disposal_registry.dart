@@ -163,7 +163,7 @@ class DisposalRegistry {
     if (_email.isEmpty || _myVotes.containsKey(placeId)) return;
     try {
       final doc = await _col.doc(placeId).collection('votes').doc(_email).get();
-      final v = (doc.data() as Map<String, dynamic>?)?['vote'] as String?;
+      final v = doc.data()?['vote'] as String?;
       if (v != null) {
         _myVotes[placeId] = v == 'notASite' ? SiteVote.notASite : SiteVote.takesWaste;
         revision.value++;
