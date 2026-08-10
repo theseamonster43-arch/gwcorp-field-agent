@@ -126,8 +126,7 @@ class _IosSatelliteScreenState extends State<IosSatelliteScreen> {
         setState(() {
           _loading = false;
           if (_pos == null) {
-            _error = 'Could not pin down your location. On a tablet without '
-                'GPS this needs Wi-Fi or mobile data turned on.';
+            _error = 'No location. Check Wi-Fi or mobile data is on.';
           }
         });
         return;
