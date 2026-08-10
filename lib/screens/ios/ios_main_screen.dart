@@ -15,6 +15,7 @@ import 'ios_chats_screen.dart';
 import 'ios_home_screen.dart';
 import 'ios_scans_screen.dart';
 import 'ios_analytics_screen.dart';
+import 'ios_satellite_screen.dart';
 import 'ios_account_screen.dart';
 
 class IosMainScreen extends StatefulWidget {
@@ -79,6 +80,8 @@ class _IosMainScreenState extends State<IosMainScreen>
   void _openChats() => _setTab(4);
 
   void _openAi() => _setTab(5);
+
+  void _openSatellite() => _setTab(6);
 
   void _newScan() => showGwSheet(
         context,
@@ -152,9 +155,11 @@ class _IosMainScreenState extends State<IosMainScreen>
                 gw,
                 icon: GwIcons.satellite,
                 label: 'Satellite',
-                detail: 'Coming soon',
-                enabled: false,
-                onTap: () {},
+                detail: 'Nearest place to take this waste',
+                onTap: () {
+                  Navigator.of(sheetContext).pop();
+                  _openSatellite();
+                },
               ),
               const SizedBox(height: 8),
               _moreRow(
@@ -273,6 +278,7 @@ class _IosMainScreenState extends State<IosMainScreen>
                   const IosAccountScreen(),
                   const IosChatsList(showBack: false),
                   const IosAiChatScreen(showBack: false),
+                  const IosSatelliteScreen(showBack: false),
                 ],
               ),
             ),

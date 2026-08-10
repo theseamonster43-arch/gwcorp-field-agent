@@ -26,7 +26,8 @@ const int kDesktopScansTab     = 1;
 const int kDesktopStatsTab     = 2;
 const int kDesktopChatsTab     = 3;
 const int kDesktopAiTab        = 4;
-const int kDesktopAccountTab   = 5;
+const int kDesktopSatelliteTab = 5;
+const int kDesktopAccountTab   = 6;
 
 /// Set by main.dart. Navigation for chrome that sits above the router.
 void Function(String route)? gwGo;

@@ -11,6 +11,7 @@ import '../ios/ios_scans_screen.dart';
 import '../ios/ios_analytics_screen.dart';
 import '../ios/ios_chats_screen.dart';
 import '../ios/ios_ai_chat_screen.dart';
+import '../ios/ios_satellite_screen.dart';
 import '../ios/ios_account_screen.dart';
 
 /// Desktop content area.
@@ -109,6 +110,7 @@ class _DesktopShellState extends State<DesktopShell>
                   IosAnalyticsScreen(sessions: _sessions),
                   const IosChatsList(showBack: false),
                   const IosAiChatScreen(showBack: false),
+                  const IosSatelliteScreen(showBack: false),
                   const IosAccountScreen(),
                 ],
               ),

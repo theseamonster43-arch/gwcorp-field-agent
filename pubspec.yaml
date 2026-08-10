@@ -41,6 +41,10 @@ dependencies:
   window_manager: ^0.4.3
   url_launcher: ^6.3.2
 
+  # Satellite / disposal finder
+  google_maps_flutter: ^2.9.0
+  geolocator: ^13.0.1
+
 dev_dependencies:
   flutter_test:
     sdk: flutter

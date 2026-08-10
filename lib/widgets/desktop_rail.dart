@@ -52,6 +52,7 @@ class DesktopRail extends StatelessWidget {
           _RailBtn(index: kDesktopStatsTab, current: tab, icon: GwIcons.chart,   label: 'Stats'),
           _RailBtn(index: kDesktopChatsTab, current: tab, icon: GwIcons.chat,    label: 'Chats'),
           _RailBtn(index: kDesktopAiTab,    current: tab, icon: GwIcons.sparkle, label: 'AI'),
+          _RailBtn(index: kDesktopSatelliteTab, current: tab, icon: GwIcons.satellite, label: 'Disposal'),
           const Spacer(),
           Divider(color: gw.border, height: 1, indent: 14, endIndent: 14),
           const SizedBox(height: 10),
