@@ -22,9 +22,6 @@ class DisposalSite {
   /// through [DisposalService.photoBytes] rather than a plain URL.
   final List<String> photoNames;
 
-  /// Google's short editorial blurb, when it has one.
-  final String description;
-
   /// Straight-line metres from the agent. Google returns no distance for a
   /// nearby search, so this is computed locally.
   final double distanceMeters;
@@ -40,7 +37,6 @@ class DisposalSite {
     this.openNow,
     this.types = const [],
     this.photoNames = const [],
-    this.description = '',
   });
 
   String get distanceLabel => distanceMeters < 1000
@@ -268,7 +264,7 @@ class DisposalService {
           'X-Goog-FieldMask':
               'places.id,places.displayName,places.formattedAddress,'
               'places.location,places.rating,places.types,'
-              'places.photos,places.editorialSummary,'
+              'places.photos,'
               'places.currentOpeningHours.openNow',
         },
         body: jsonEncode({
@@ -328,7 +324,6 @@ class DisposalService {
                   .take(6)
                   .toList() ??
               const [],
-          description: (p['editorialSummary']?['text'] as String?) ?? '',
           distanceMeters: _haversine(lat, lng, plat, plng),
         ));
       }

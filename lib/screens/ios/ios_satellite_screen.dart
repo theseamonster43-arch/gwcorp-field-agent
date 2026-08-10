@@ -857,12 +857,6 @@ class _IosSatelliteScreenState extends State<IosSatelliteScreen> {
           ),
         ],
 
-        if (s.description.isNotEmpty) ...[
-          const SizedBox(height: 10),
-          Text(s.description,
-              maxLines: 3, overflow: TextOverflow.ellipsis,
-              style: TextStyle(color: gw.muted, fontSize: 12, height: 1.45)),
-        ],
 
         const SizedBox(height: 12),
 
