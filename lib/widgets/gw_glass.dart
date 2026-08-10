@@ -1,6 +1,7 @@
 import 'dart:ui';
 import 'package:flutter/material.dart';
 import '../theme/gw_theme.dart';
+import '../utils/app_preferences.dart';
 import 'gw_icons.dart';
 
 /// Gradient + blob backdrop. Glass only reads as glass when there is varied
@@ -89,20 +90,46 @@ class GwGlass extends StatelessWidget {
         ? accent!.withOpacity(d ? .40 : .38)
         : (d ? Colors.white.withOpacity(.16) : Colors.white.withOpacity(.85));
 
-    Widget panel = ClipRRect(
-      borderRadius: BorderRadius.circular(radius),
-      child: BackdropFilter(
-        filter: ImageFilter.blur(sigmaX: blur, sigmaY: blur),
-        child: Container(
-          padding: padding,
-          decoration: BoxDecoration(
-            color: fill,
-            borderRadius: BorderRadius.circular(radius),
-            border: Border.all(color: line, width: 1),
-          ),
-          child: child,
-        ),
+    final body = Container(
+      padding: padding,
+      decoration: BoxDecoration(
+        color: fill,
+        borderRadius: BorderRadius.circular(radius),
+        border: Border.all(color: line, width: 1),
       ),
+      child: child,
+    );
+
+    // Performance mode drops the BackdropFilter. It is the expensive part —
+    // every one forces the engine to read back and blur what is already
+    // painted, and a list of them is what makes older phones stutter. The
+    // fill is laid over the page colour instead so the surface still reads as
+    // a panel rather than turning transparent.
+    Widget panel = ValueListenableBuilder<bool>(
+      valueListenable: performanceModeNotifier,
+      builder: (context, plain, _) {
+        if (plain) {
+          return ClipRRect(
+            borderRadius: BorderRadius.circular(radius),
+            child: Container(
+              padding: padding,
+              decoration: BoxDecoration(
+                color: Color.alphaBlend(fill, d ? gw.bg2 : gw.bg3),
+                borderRadius: BorderRadius.circular(radius),
+                border: Border.all(color: line, width: 1),
+              ),
+              child: child,
+            ),
+          );
+        }
+        return ClipRRect(
+          borderRadius: BorderRadius.circular(radius),
+          child: BackdropFilter(
+            filter: ImageFilter.blur(sigmaX: blur, sigmaY: blur),
+            child: body,
+          ),
+        );
+      },
     );
 
     if (onTap == null) return panel;

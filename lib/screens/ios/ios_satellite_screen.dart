@@ -1044,19 +1044,36 @@ class _IosSatelliteScreenState extends State<IosSatelliteScreen> {
         const SizedBox(height: 14),
         Row(children: [
           Expanded(
-            child: GwGlass(
-              radius: 12,
-              accent: (s.acceptsWaste || s.isVerified) ? gw.green : gw.amber,
+            child: GestureDetector(
               onTap: () => _startNavigation(s),
-              padding: const EdgeInsets.symmetric(vertical: 11),
-              child: Row(mainAxisAlignment: MainAxisAlignment.center, children: [
-                GwIcon(GwIcons.arrowUp, size: 15,
-                    color: (s.acceptsWaste || s.isVerified) ? gw.green : gw.amber),
-                const SizedBox(width: 8),
-                Text('Start', style: TextStyle(
-                    color: (s.acceptsWaste || s.isVerified) ? gw.green : gw.amber,
-                    fontSize: 13, fontWeight: FontWeight.w700)),
-              ]),
+              child: Container(
+                padding: const EdgeInsets.symmetric(vertical: 12),
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(12),
+                  gradient: LinearGradient(
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                    // Amber when nothing suggests the place takes waste, so the
+                    // warning above is not contradicted by a confident button.
+                    colors: (s.acceptsWaste || s.isVerified)
+                        ? [const Color(0xFF4ADE80), gw.green, gw.greenDim]
+                        : [gw.amber, const Color(0xFFB45309)],
+                  ),
+                  boxShadow: [
+                    BoxShadow(
+                      color: ((s.acceptsWaste || s.isVerified) ? gw.green : gw.amber)
+                          .withOpacity(.45),
+                      blurRadius: 16, offset: const Offset(0, 5)),
+                  ],
+                ),
+                child: Row(mainAxisAlignment: MainAxisAlignment.center, children: const [
+                  GwIcon(GwIcons.arrowUp, size: 15, color: Colors.white, strokeWidth: 2.2),
+                  SizedBox(width: 8),
+                  Text('Start', style: TextStyle(
+                      color: Colors.white, fontSize: 13.5,
+                      fontWeight: FontWeight.w800)),
+                ]),
+              ),
             ),
           ),
         ]),

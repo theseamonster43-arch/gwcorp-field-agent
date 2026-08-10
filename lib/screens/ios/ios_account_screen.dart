@@ -235,6 +235,41 @@ class _IosAccountScreenState extends State<IosAccountScreen> {
                 ),
               ),
             ),
+            const SizedBox(height: 10),
+
+            // ── Performance ───────────────────────────────────────────────
+            GwGlass(
+              radius: 20,
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+              child: Padding(
+                padding: const EdgeInsets.symmetric(vertical: 8),
+                child: Row(children: [
+                  GwIcon(GwIcons.shield, size: 20, color: gw.text),
+                  const SizedBox(width: 14),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text('Performance mode', style: TextStyle(
+                            color: gw.text, fontSize: 13.5,
+                            fontWeight: FontWeight.w600)),
+                        Text('Turns off blur. Smoother on older phones.',
+                            style: TextStyle(color: gw.muted, fontSize: 11)),
+                      ],
+                    ),
+                  ),
+                  ValueListenableBuilder<bool>(
+                    valueListenable: performanceModeNotifier,
+                    builder: (_, on, __) => Switch.adaptive(
+                      value: on,
+                      activeColor: gw.green,
+                      onChanged: (v) => performanceModeNotifier.value = v,
+                    ),
+                  ),
+                ]),
+              ),
+            ),
             const SizedBox(height: 18),
 
             // ── Data ──────────────────────────────────────────────────────
