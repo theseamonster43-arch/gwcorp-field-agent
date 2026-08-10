@@ -51,6 +51,17 @@ dev_dependencies:
   flutter_test:
     sdk: flutter
   flutter_lints: ^4.0.0
+  flutter_launcher_icons: ^0.14.1
 
 flutter:
   uses-material-design: true
+
+# Launcher icons are generated from the desktop diamond so every platform
+# shows the same mark. Regenerate with: dart run flutter_launcher_icons
+flutter_launcher_icons:
+  image_path: "assets/icon/app_icon.png"
+  android: "ic_launcher"
+  ios: true
+  # The App Store rejects icons with an alpha channel.
+  remove_alpha_ios: true
+  min_sdk_android: 21
