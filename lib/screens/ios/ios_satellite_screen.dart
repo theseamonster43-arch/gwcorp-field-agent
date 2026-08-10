@@ -253,6 +253,24 @@ class _IosSatelliteScreenState extends State<IosSatelliteScreen> {
   }
 
 
+
+  /// Opens the photo strip full screen, starting on the one tapped.
+  void _openPhotos(DisposalSite s, int initial) {
+    Navigator.of(context).push(PageRouteBuilder(
+      opaque: false,
+      barrierColor: Colors.black87,
+      transitionDuration: const Duration(milliseconds: 220),
+      pageBuilder: (_, anim, __) => FadeTransition(
+        opacity: anim,
+        child: _PhotoViewer(
+          photoNames: s.photoNames,
+          initialIndex: initial,
+          title: s.name,
+        ),
+      ),
+    ));
+  }
+
   SiteVote? _myVote(DisposalSite s) => DisposalRegistry.myVote(s.id);
 
   Future<void> _record(DisposalSite s, SiteVote vote) async {
@@ -788,8 +806,17 @@ class _IosSatelliteScreenState extends State<IosSatelliteScreen> {
                       ),
                     ),
                     const SizedBox(width: 8),
-                    Text(s.distanceLabel, style: TextStyle(color: gw.green,
-                        fontSize: 11.5, fontWeight: FontWeight.w700)),
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.end,
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(s.distanceLabel, style: TextStyle(color: gw.green,
+                            fontSize: 11.5, fontWeight: FontWeight.w700)),
+                        if (s.rating != null)
+                          Text('★ ' + s.rating!.toStringAsFixed(1),
+                              style: TextStyle(color: gw.muted, fontSize: 10)),
+                      ],
+                    ),
                   ]),
                 ),
               );
@@ -849,6 +876,7 @@ class _IosSatelliteScreenState extends State<IosSatelliteScreen> {
               separatorBuilder: (_, __) => const SizedBox(width: 8),
               itemBuilder: (_, i) => _SitePhoto(
                 photoName: s.photoNames[i],
+                onTap: () => _openPhotos(s, i),
                 // Keyed so switching site swaps the images instead of the
                 // previous ones lingering while the new bytes load.
                 key: ValueKey(s.photoNames[i]),
@@ -883,6 +911,13 @@ class _IosSatelliteScreenState extends State<IosSatelliteScreen> {
               Text(s.openNow! ? 'Open' : 'Closed', style: TextStyle(
                 color: s.openNow! ? gw.green : gw.amber,
                 fontSize: 11.5, fontWeight: FontWeight.w600)),
+            ],
+            if (s.rating != null) ...[
+              const SizedBox(width: 10),
+              Text('★', style: TextStyle(color: gw.amber, fontSize: 12)),
+              const SizedBox(width: 3),
+              Text(s.rating!.toStringAsFixed(1), style: TextStyle(
+                  color: gw.text, fontSize: 11.5, fontWeight: FontWeight.w700)),
             ],
           ]),
 
@@ -1218,7 +1253,8 @@ class _RecenterButtonState extends State<_RecenterButton> {
 /// would come back 403.
 class _SitePhoto extends StatefulWidget {
   final String photoName;
-  const _SitePhoto({super.key, required this.photoName});
+  final VoidCallback? onTap;
+  const _SitePhoto({super.key, required this.photoName, this.onTap});
 
   @override
   State<_SitePhoto> createState() => _SitePhotoState();
@@ -1246,7 +1282,9 @@ class _SitePhotoState extends State<_SitePhoto> {
   @override
   Widget build(BuildContext context) {
     final gw = GwTheme.of(context);
-    return ClipRRect(
+    return GestureDetector(
+      onTap: _bytes == null ? null : widget.onTap,
+      child: ClipRRect(
       borderRadius: BorderRadius.circular(12),
       child: SizedBox(
         width: 104,
@@ -1268,6 +1306,150 @@ class _SitePhotoState extends State<_SitePhoto> {
                         ),
                 ),
               ),
+      ),
+    ),
+    );
+  }
+}
+
+/// Full-screen, swipeable view of a site's photos.
+class _PhotoViewer extends StatefulWidget {
+  final List<String> photoNames;
+  final int initialIndex;
+  final String title;
+
+  const _PhotoViewer({
+    required this.photoNames,
+    required this.initialIndex,
+    required this.title,
+  });
+
+  @override
+  State<_PhotoViewer> createState() => _PhotoViewerState();
+}
+
+class _PhotoViewerState extends State<_PhotoViewer> {
+  late final PageController _pages =
+      PageController(initialPage: widget.initialIndex);
+  late int _index = widget.initialIndex;
+
+  @override
+  void dispose() {
+    _pages.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final top = MediaQuery.of(context).padding.top;
+    return Scaffold(
+      backgroundColor: Colors.transparent,
+      body: Stack(children: [
+        // Tapping the backdrop closes, the same as swiping down would.
+        Positioned.fill(
+          child: GestureDetector(
+            behavior: HitTestBehavior.opaque,
+            onTap: () => Navigator.of(context).pop(),
+          ),
+        ),
+        PageView.builder(
+          controller: _pages,
+          itemCount: widget.photoNames.length,
+          onPageChanged: (i) => setState(() => _index = i),
+          itemBuilder: (_, i) => Center(
+            // Full width at a larger size than the thumbnail strip asks for.
+            child: _FullPhoto(photoName: widget.photoNames[i]),
+          ),
+        ),
+        Positioned(
+          top: top + 10,
+          left: 12,
+          right: 12,
+          child: Row(children: [
+            Expanded(
+              child: Text(
+                widget.title,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 15,
+                    fontWeight: FontWeight.w700,
+                    decoration: TextDecoration.none),
+              ),
+            ),
+            if (widget.photoNames.length > 1)
+              Text('${_index + 1} / ${widget.photoNames.length}',
+                  style: const TextStyle(
+                      color: Colors.white70,
+                      fontSize: 12.5,
+                      decoration: TextDecoration.none)),
+            const SizedBox(width: 12),
+            GestureDetector(
+              onTap: () => Navigator.of(context).pop(),
+              child: Container(
+                padding: const EdgeInsets.all(9),
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: Colors.white.withOpacity(.16),
+                ),
+                child: const GwIcon(GwIcons.close, size: 16, color: Colors.white),
+              ),
+            ),
+          ]),
+        ),
+      ]),
+    );
+  }
+}
+
+/// A single full-size photo, fetched with the app identity headers.
+class _FullPhoto extends StatefulWidget {
+  final String photoName;
+  const _FullPhoto({required this.photoName});
+
+  @override
+  State<_FullPhoto> createState() => _FullPhotoState();
+}
+
+class _FullPhotoState extends State<_FullPhoto> {
+  Uint8List? _bytes;
+  bool _failed = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _load();
+  }
+
+  Future<void> _load() async {
+    final b = await DisposalService.photoBytes(widget.photoName, maxWidthPx: 1200);
+    if (!mounted) return;
+    setState(() {
+      _bytes = b;
+      _failed = b == null;
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (_bytes != null) {
+      // Pinch to zoom, drag to pan.
+      return InteractiveViewer(
+        minScale: 1,
+        maxScale: 4,
+        child: Image.memory(_bytes!, fit: BoxFit.contain),
+      );
+    }
+    if (_failed) {
+      return const GwIcon(GwIcons.image, size: 34, color: Colors.white54);
+    }
+    return const SizedBox(
+      width: 26,
+      height: 26,
+      child: CircularProgressIndicator(
+        strokeWidth: 2,
+        valueColor: AlwaysStoppedAnimation<Color>(Colors.white70),
       ),
     );
   }
