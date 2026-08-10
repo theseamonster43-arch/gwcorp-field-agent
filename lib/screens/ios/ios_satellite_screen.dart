@@ -81,7 +81,6 @@ class _IosSatelliteScreenState extends State<IosSatelliteScreen> {
   }
 
   bool _voiceOpen = false;
-  GwVoiceState _voice = const GwVoiceState();
 
   /// Set on arrival so the destination pin can be shown differently.
   bool _arrived = false;
@@ -282,58 +281,6 @@ class _IosSatelliteScreenState extends State<IosSatelliteScreen> {
 
 
 
-  /// The conversation, drawn large in the middle of the map. Kept out of the
-  /// bottom bar so it stays readable at a glance while driving.
-  Widget _voiceTranscript(GwColors gw) {
-    final v = _voice;
-    final said = v.heard.trim();
-    final reply = v.error ?? v.reply;
-
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 32),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            if (said.isNotEmpty)
-              AnimatedSwitcher(
-                duration: const Duration(milliseconds: 200),
-                child: Text(
-                  said,
-                  key: ValueKey(said),
-                  textAlign: TextAlign.center,
-                  style: TextStyle(
-                    color: gw.text.withOpacity(.65),
-                    fontSize: 16,
-                    height: 1.4,
-                    fontWeight: FontWeight.w600,
-                    shadows: const [Shadow(color: Colors.black54, blurRadius: 12)],
-                  ),
-                ),
-              ),
-            if (said.isNotEmpty && reply.isNotEmpty) const SizedBox(height: 18),
-            if (reply.isNotEmpty)
-              AnimatedSwitcher(
-                duration: const Duration(milliseconds: 260),
-                child: Text(
-                  reply,
-                  key: ValueKey(reply),
-                  textAlign: TextAlign.center,
-                  style: TextStyle(
-                    color: v.error != null ? gw.amber : Colors.white,
-                    fontSize: 22,
-                    height: 1.4,
-                    fontWeight: FontWeight.w800,
-                    letterSpacing: -0.4,
-                    shadows: const [Shadow(color: Colors.black87, blurRadius: 16)],
-                  ),
-                ),
-              ),
-          ],
-        ),
-      ),
-    );
-  }
 
   /// Everything the assistant should know before answering.
   String _voiceContext() {
@@ -625,7 +572,7 @@ class _IosSatelliteScreenState extends State<IosSatelliteScreen> {
     // than stretching edge to edge — a search bar a metre wide is no easier
     // to use, and it buries the map.
     final wide = gwIsWide(context);
-    const panelW = 380.0;
+    const panelW = 440.0;
     // Inside the phone shell the floating tab bar overlaps the bottom of the
     // screen, so the map has to stop above it rather than run underneath.
     final barGap = (!widget.showBack && _mapSupported)
@@ -719,12 +666,6 @@ class _IosSatelliteScreenState extends State<IosSatelliteScreen> {
         ),
 
         // Route / selection card
-        if (_voiceOpen)
-          Positioned(
-            top: 0, bottom: 0, right: 0,
-            left: wide ? panelW + 24 : 0,
-            child: IgnorePointer(child: _voiceTranscript(gw)),
-          ),
 
         if (_navigating && !_voiceOpen)
           Positioned(
@@ -747,7 +688,9 @@ class _IosSatelliteScreenState extends State<IosSatelliteScreen> {
             crossAxisAlignment: CrossAxisAlignment.end,
             mainAxisSize: MainAxisSize.min,
             children: [
-              if (_mapSupported && _pos != null && _offCentre && !_voiceOpen) ...[
+              // Recenter lives on the right edge when there is room; on a
+              // phone the card already spans the width, so it stacks above.
+              if (!wide && _mapSupported && _pos != null && _offCentre && !_voiceOpen) ...[
                 _SlideFadeIn(
                   from: const Offset(0.4, 0),
                   child: _RecenterButton(onTap: _recenter),
@@ -761,11 +704,7 @@ class _IosSatelliteScreenState extends State<IosSatelliteScreen> {
                   from: const Offset(0, 0.3),
                   child: GwVoicePanel(
                     context: _voiceContext(),
-                    onClose: () => setState(() {
-                      _voiceOpen = false;
-                      _voice = const GwVoiceState();
-                    }),
-                    onState: (v) => setState(() => _voice = v),
+                    onClose: () => setState(() => _voiceOpen = false),
                     dark: _navigating,
                   ),
                 )
@@ -783,6 +722,16 @@ class _IosSatelliteScreenState extends State<IosSatelliteScreen> {
             ],
           ),
         ),
+
+        if (wide && _mapSupported && _pos != null && _offCentre && !_voiceOpen)
+          Positioned(
+            right: 16,
+            bottom: barGap + 16,
+            child: _SlideFadeIn(
+              from: const Offset(0.4, 0),
+              child: _RecenterButton(onTap: _recenter),
+            ),
+          ),
 
         if (_loading && _sites.isEmpty)
           Positioned(
@@ -856,7 +805,7 @@ class _IosSatelliteScreenState extends State<IosSatelliteScreen> {
       // Moves Google's logo and controls above the tab bar and route card
       // without shrinking the map itself, so tiles still run edge to edge.
       padding: EdgeInsets.only(
-        left: gwIsWide(context) ? 404 : 0,
+        left: gwIsWide(context) ? 464 : 0,
         top: gwIsWide(context)
             ? MediaQuery.of(context).padding.top + 8
             : MediaQuery.of(context).padding.top + 70,
@@ -1400,11 +1349,27 @@ class _RecenterButtonState extends State<_RecenterButton> {
         scale: _down ? 0.88 : 1.0,
         duration: const Duration(milliseconds: 130),
         curve: Curves.easeOut,
-        child: GwGlass(
-          radius: 99,
-          blur: 24,
-          padding: const EdgeInsets.all(13),
-          child: GwIcon(GwIcons.pin, size: 20, color: gw.green),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 11),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(99),
+            gradient: LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: [const Color(0xFF4ADE80), gw.green, gw.greenDim],
+            ),
+            boxShadow: [
+              BoxShadow(color: gw.green.withOpacity(.45),
+                  blurRadius: 16, offset: const Offset(0, 5)),
+            ],
+          ),
+          child: Row(mainAxisSize: MainAxisSize.min, children: const [
+            GwIcon(GwIcons.pin, size: 16, color: Colors.white, strokeWidth: 2.2),
+            SizedBox(width: 8),
+            Text('Recenter', style: TextStyle(
+                color: Colors.white, fontSize: 13,
+                fontWeight: FontWeight.w800)),
+          ]),
         ),
       ),
     );

@@ -9,8 +9,9 @@ import '../theme/gw_theme.dart';
 import 'gw_glass.dart';
 import 'gw_icons.dart';
 
-/// What the panel is currently doing, reported up so the screen can show the
-/// conversation large and centred rather than cramped inside the bar.
+/// What the panel is currently doing. Nothing consumes this today — the bar
+/// shows the state itself — but it is reported so a screen can surface the
+/// conversation elsewhere if that is ever wanted.
 class GwVoiceState {
   final String heard;
   final String reply;
@@ -29,16 +30,17 @@ class GwVoiceState {
 
 /// Hands-free assistant, shaped like a music player.
 ///
-/// Takes the place of the route footer while open: a status line, a level
-/// meter that moves with your voice, and a close button. The conversation
-/// itself is drawn in the middle of the screen by the parent, where it is
-/// readable at a glance.
+/// Takes the place of the route footer while open: a glow that swells with
+/// your voice, and a close button. Everything is spoken rather than written,
+/// so there is nothing to read while driving.
 class GwVoicePanel extends StatefulWidget {
   /// Background the assistant answers from — the site, the route, the load.
   final String context;
 
   final VoidCallback onClose;
-  final ValueChanged<GwVoiceState> onState;
+  /// Optional: the bar shows everything itself now, but the screen can still
+  /// listen in if it wants to surface the conversation elsewhere.
+  final ValueChanged<GwVoiceState>? onState;
 
   /// Navigation is on screen, so sit dark against the map instead of glassy.
   final bool dark;
@@ -47,7 +49,7 @@ class GwVoicePanel extends StatefulWidget {
     super.key,
     required this.context,
     required this.onClose,
-    required this.onState,
+    this.onState,
     this.dark = false,
   });
 
@@ -96,7 +98,7 @@ class _GwVoicePanelState extends State<GwVoicePanel>
     super.dispose();
   }
 
-  void _publish() => widget.onState(GwVoiceState(
+  void _publish() => widget.onState?.call(GwVoiceState(
         heard: _heard,
         reply: _reply,
         listening: _listening,
@@ -207,8 +209,8 @@ class _GwVoicePanelState extends State<GwVoicePanel>
   Widget build(BuildContext context) {
     final gw = GwTheme.of(context);
 
-    // Nothing but the glow and a way out. The status was saying what the wave
-    // already shows, and the conversation is drawn centre-screen anyway.
+    // Nothing but the glow and a way out — the wave already shows whether it
+    // is hearing you, and the answer is spoken.
     final content = Row(children: [
         Expanded(
           child: SizedBox(
