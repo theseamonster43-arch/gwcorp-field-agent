@@ -92,14 +92,22 @@ class DisposalService {
   /// per (route, rounded location) for the life of the process.
   static final Map<String, List<DisposalSite>> _cache = {};
 
+  /// [query] overrides the route's default search text, so the search bar can
+  /// look for anything ("scrap yard", "Bee'ah") while the chips stay a
+  /// one-tap shortcut for the common categories.
   static Future<List<DisposalSite>> nearby({
     required WasteRoute route,
     required double lat,
     required double lng,
+    String? query,
     double radiusMeters = 25000,
   }) async {
+    final text = (query != null && query.trim().isNotEmpty)
+        ? query.trim()
+        : route.query;
+
     // ~1km buckets — moving a few streets should reuse the cached answer.
-    final key = '${route.name}:${lat.toStringAsFixed(2)}:${lng.toStringAsFixed(2)}';
+    final key = '$text:${lat.toStringAsFixed(2)}:${lng.toStringAsFixed(2)}';
     final hit = _cache[key];
     if (hit != null) return hit;
 
@@ -116,7 +124,7 @@ class DisposalService {
               'places.location,places.rating,places.currentOpeningHours.openNow',
         },
         body: jsonEncode({
-          'textQuery': route.query,
+          'textQuery': text,
           'maxResultCount': 10,
           'locationBias': {
             'circle': {

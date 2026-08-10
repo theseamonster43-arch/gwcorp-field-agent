@@ -110,7 +110,7 @@ class _DesktopShellState extends State<DesktopShell>
                   IosAnalyticsScreen(sessions: _sessions),
                   const IosChatsList(showBack: false),
                   const IosAiChatScreen(showBack: false),
-                  const IosSatelliteScreen(showBack: false),
+                  IosSatelliteScreen(showBack: false, sessions: _sessions),
                   const IosAccountScreen(),
                 ],
               ),

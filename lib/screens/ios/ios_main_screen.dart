@@ -278,7 +278,7 @@ class _IosMainScreenState extends State<IosMainScreen>
                   const IosAccountScreen(),
                   const IosChatsList(showBack: false),
                   const IosAiChatScreen(showBack: false),
-                  const IosSatelliteScreen(showBack: false),
+                  IosSatelliteScreen(showBack: false, sessions: _sessions),
                 ],
               ),
             ),
