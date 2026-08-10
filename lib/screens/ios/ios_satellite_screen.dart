@@ -492,11 +492,11 @@ class _IosSatelliteScreenState extends State<IosSatelliteScreen> {
           Positioned(
             top: MediaQuery.of(context).padding.top + 8,
             left: 12, right: 12,
-            child: _guidanceBanner(gw),
+            child: _SlideFadeIn(from: const Offset(0, -0.35), child: _guidanceBanner(gw)),
           ),
           Positioned(
             left: 12, right: 12, bottom: barGap + 16,
-            child: _guidanceFooter(gw),
+            child: _SlideFadeIn(from: const Offset(0, 0.35), child: _guidanceFooter(gw)),
           ),
         ],
 
@@ -763,9 +763,23 @@ class _IosSatelliteScreenState extends State<IosSatelliteScreen> {
           ),
         ],
       ),
-      child: Row(children: [
-        GwIcon(_maneuverIcon(now?.maneuver ?? ''),
-            size: 26, color: Colors.white, strokeWidth: 2.4),
+      child: AnimatedSwitcher(
+        duration: const Duration(milliseconds: 320),
+        switchInCurve: Curves.easeOutCubic,
+        switchOutCurve: Curves.easeIn,
+        transitionBuilder: (child, anim) => FadeTransition(
+          opacity: anim,
+          child: SlideTransition(
+            position: Tween<Offset>(
+              begin: const Offset(0.18, 0), end: Offset.zero).animate(anim),
+            child: child,
+          ),
+        ),
+        // Re-keying on the step index is what makes each new manoeuvre
+        // animate in rather than silently swapping text.
+        child: Row(key: ValueKey(_step), children: [
+          GwIcon(_maneuverIcon(now?.maneuver ?? ''),
+              size: 26, color: Colors.white, strokeWidth: 2.4),
         const SizedBox(width: 14),
         Expanded(
           child: Column(
@@ -785,7 +799,8 @@ class _IosSatelliteScreenState extends State<IosSatelliteScreen> {
             ],
           ),
         ),
-      ]),
+        ]),
+      ),
     );
   }
 
@@ -868,4 +883,42 @@ class _IosSatelliteScreenState extends State<IosSatelliteScreen> {
               fontSize: 11.5, fontWeight: FontWeight.w700)),
         ]),
       );
+}
+
+/// Plays once when the widget mounts. Guidance panels appear and disappear
+/// as navigation starts and stops, so mounting is the natural trigger.
+class _SlideFadeIn extends StatefulWidget {
+  final Widget child;
+  final Offset from;
+  const _SlideFadeIn({required this.child, required this.from});
+
+  @override
+  State<_SlideFadeIn> createState() => _SlideFadeInState();
+}
+
+class _SlideFadeInState extends State<_SlideFadeIn>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _c = AnimationController(
+    vsync: this,
+    duration: const Duration(milliseconds: 340),
+  )..forward();
+
+  @override
+  void dispose() {
+    _c.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final curve = CurvedAnimation(parent: _c, curve: Curves.easeOutCubic);
+    return FadeTransition(
+      opacity: curve,
+      child: SlideTransition(
+        position: Tween<Offset>(begin: widget.from, end: Offset.zero)
+            .animate(curve),
+        child: widget.child,
+      ),
+    );
+  }
 }
