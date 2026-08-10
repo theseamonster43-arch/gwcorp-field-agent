@@ -120,30 +120,64 @@ class _IosSatelliteScreenState extends State<IosSatelliteScreen> {
         await _search();
       }
 
-      final pos = await Geolocator.getCurrentPosition(
-        locationSettings: const LocationSettings(
-          accuracy: LocationAccuracy.medium,
-          timeLimit: Duration(seconds: 12),
-        ),
-      );
+      final pos = await _bestEffortFix();
       if (!mounted) return;
+      if (pos == null) {
+        setState(() {
+          _loading = false;
+          if (_pos == null) {
+            _error = 'Could not pin down your location. On a tablet without '
+                'GPS this needs Wi-Fi or mobile data turned on.';
+          }
+        });
+        return;
+      }
       final moved = _pos == null ||
           Geolocator.distanceBetween(
               _pos!.latitude, _pos!.longitude, pos.latitude, pos.longitude) > 500;
       setState(() => _pos = pos);
       if (moved) await _search();
-    } on TimeoutException {
-      if (!mounted) return;
-      setState(() {
-        _loading = false;
-        if (_pos == null) _error = 'Timed out getting your location.';
-      });
     } catch (_) {
       if (!mounted) return;
       setState(() {
         _loading = false;
         if (_pos == null) _error = 'Could not get your location.';
       });
+    }
+  }
+
+
+  /// Tries progressively coarser fixes.
+  ///
+  /// A phone gets a GPS fix at medium accuracy quickly. A Wi-Fi-only tablet
+  /// has no GPS radio at all, so that request simply never resolves — it has
+  /// to fall back to network positioning, which is far less precise but is
+  /// plenty for finding a recycling centre a few km away.
+  Future<Position?> _bestEffortFix() async {
+    const attempts = [
+      (LocationAccuracy.medium, 8),
+      (LocationAccuracy.low, 8),
+      (LocationAccuracy.lowest, 10),
+    ];
+    for (final (accuracy, seconds) in attempts) {
+      try {
+        return await Geolocator.getCurrentPosition(
+          locationSettings: LocationSettings(
+            accuracy: accuracy,
+            timeLimit: Duration(seconds: seconds),
+          ),
+        );
+      } on TimeoutException {
+        continue; // coarser next
+      } catch (_) {
+        continue;
+      }
+    }
+    // Last resort: whatever the platform already had cached.
+    try {
+      return await Geolocator.getLastKnownPosition();
+    } catch (_) {
+      return null;
     }
   }
 
