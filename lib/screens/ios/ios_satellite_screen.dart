@@ -59,6 +59,22 @@ class _IosSatelliteScreenState extends State<IosSatelliteScreen> {
 
   GoogleMapController? _map;
 
+  /// Where the camera is pointing. Updated without setState while the user
+  /// drags — repainting every frame of a pan is pure waste — then committed
+  /// once on idle.
+  LatLng? _camera;
+
+  /// True once the view has drifted far enough from the agent to be worth
+  /// offering a way back. Keeps the button out of the way in the default
+  /// centred state.
+  bool get _offCentre {
+    final c = _camera, pos = _pos;
+    if (c == null || pos == null) return false;
+    return Geolocator.distanceBetween(
+            pos.latitude, pos.longitude, c.latitude, c.longitude) >
+        150;
+  }
+
   // Turn-by-turn state.
   bool _navigating = false;
   int _step = 0;
@@ -196,6 +212,7 @@ class _IosSatelliteScreenState extends State<IosSatelliteScreen> {
   Future<void> _recenter() async {
     final pos = _pos;
     if (pos == null) return;
+    setState(() => _camera = LatLng(pos.latitude, pos.longitude));
     await _map?.animateCamera(CameraUpdate.newCameraPosition(CameraPosition(
       target: LatLng(pos.latitude, pos.longitude),
       zoom: _navigating ? 17 : 15,
@@ -514,39 +531,43 @@ class _IosSatelliteScreenState extends State<IosSatelliteScreen> {
         ),
 
         // Route / selection card
-        if (_selected != null && !_navigating)
-          Positioned(
-            left: 12, right: 12, bottom: barGap + 16,
-            // Keyed on the site so picking a different one replays the
-            // entrance rather than swapping text in place.
-            child: _SlideFadeIn(
-              key: ValueKey(_selected!.id),
-              from: const Offset(0, 0.35),
-              child: _routeCard(gw),
-            ),
-          ),
-
-        if (_navigating) ...[
+        if (_navigating)
           Positioned(
             top: MediaQuery.of(context).padding.top + 8,
             left: 12, right: 12,
             child: _SlideFadeIn(from: const Offset(0, -0.35), child: _guidanceBanner(gw)),
           ),
-          Positioned(
-            left: 12, right: 12, bottom: barGap + 16,
-            child: _SlideFadeIn(from: const Offset(0, 0.35), child: _guidanceFooter(gw)),
-          ),
-        ],
 
-        if (_mapSupported && _pos != null)
-          Positioned(
-            right: 16,
-            bottom: barGap + (_selected != null || _navigating ? 156 : 26),
-            child: _SlideFadeIn(
-              from: const Offset(0.4, 0),
-              child: _RecenterButton(onTap: _recenter),
-            ),
+        // Recenter, route card and guidance footer share one column, so the
+        // button always sits clear of whatever card is showing instead of
+        // being positioned against a guessed height.
+        Positioned(
+          left: 12, right: 12, bottom: barGap + 16,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.end,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              if (_mapSupported && _pos != null && _offCentre) ...[
+                _SlideFadeIn(
+                  from: const Offset(0.4, 0),
+                  child: _RecenterButton(onTap: _recenter),
+                ),
+                const SizedBox(height: 12),
+              ],
+              if (_selected != null && !_navigating)
+                _SlideFadeIn(
+                  key: ValueKey(_selected!.id),
+                  from: const Offset(0, 0.35),
+                  child: _routeCard(gw),
+                ),
+              if (_navigating)
+                _SlideFadeIn(
+                  from: const Offset(0, 0.35),
+                  child: _guidanceFooter(gw),
+                ),
+            ],
           ),
+        ),
 
         if (_loading && _sites.isEmpty)
           Positioned(
@@ -621,6 +642,8 @@ class _IosSatelliteScreenState extends State<IosSatelliteScreen> {
       ),
       onMapCreated: (c) => _map = c,
       onTap: (_) => setState(() => _listOpen = false),
+      onCameraMove: (p) => _camera = p.target,
+      onCameraIdle: () { if (mounted) setState(() {}); },
       markers: {
         for (final s in _sites)
           Marker(
