@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:typed_data';
 import 'dart:io' show Platform;
 import 'dart:math' as math;
 import 'package:http/http.dart' as http;
@@ -17,6 +18,13 @@ class DisposalSite {
   /// Google place types, e.g. recycling_center, storage, point_of_interest.
   final List<String> types;
 
+  /// Photo resource names, e.g. 'places/ChIJ.../photos/AeJb...'. Fetched
+  /// through [DisposalService.photoBytes] rather than a plain URL.
+  final List<String> photoNames;
+
+  /// Google's short editorial blurb, when it has one.
+  final String description;
+
   /// Straight-line metres from the agent. Google returns no distance for a
   /// nearby search, so this is computed locally.
   final double distanceMeters;
@@ -31,6 +39,8 @@ class DisposalSite {
     this.rating,
     this.openNow,
     this.types = const [],
+    this.photoNames = const [],
+    this.description = '',
   });
 
   String get distanceLabel => distanceMeters < 1000
@@ -258,6 +268,7 @@ class DisposalService {
           'X-Goog-FieldMask':
               'places.id,places.displayName,places.formattedAddress,'
               'places.location,places.rating,places.types,'
+              'places.photos,places.editorialSummary,'
               'places.currentOpeningHours.openNow',
         },
         body: jsonEncode({
@@ -310,6 +321,14 @@ class DisposalService {
           rating: (p['rating'] as num?)?.toDouble(),
           openNow: p['currentOpeningHours']?['openNow'] as bool?,
           types: (p['types'] as List?)?.whereType<String>().toList() ?? const [],
+          photoNames: (p['photos'] as List?)
+                  ?.whereType<Map<String, dynamic>>()
+                  .map((ph) => ph['name'] as String?)
+                  .whereType<String>()
+                  .take(6)
+                  .toList() ??
+              const [],
+          description: (p['editorialSummary']?['text'] as String?) ?? '',
           distanceMeters: _haversine(lat, lng, plat, plng),
         ));
       }
@@ -345,6 +364,40 @@ class DisposalService {
   }
 
   static void clearCache() => _cache.clear();
+
+  /// Photo bytes for a Places photo resource.
+  ///
+  /// Fetched by hand rather than handed to Image.network because the key is
+  /// restricted to this app — a plain image request carries no app identity
+  /// headers and comes back 403.
+  static final Map<String, Uint8List> _photoCache = {};
+
+  static Future<Uint8List?> photoBytes(String photoName,
+      {int maxWidthPx = 600}) async {
+    final key = '$photoName:$maxWidthPx';
+    final hit = _photoCache[key];
+    if (hit != null) return hit;
+
+    try {
+      final res = await http.get(
+        Uri.parse('https://places.googleapis.com/v1/$photoName/media'
+            '?maxWidthPx=$maxWidthPx&key=$_apiKey'),
+        headers: _appHeaders,
+      );
+      if (res.statusCode != 200) {
+        // ignore: avoid_print
+        print('DisposalService.photo: HTTP ${res.statusCode}');
+        return null;
+      }
+      // Small and reused as the card reopens; the list is capped at 6 per site.
+      _photoCache[key] = res.bodyBytes;
+      return res.bodyBytes;
+    } catch (e) {
+      // ignore: avoid_print
+      print('DisposalService.photo: $e');
+      return null;
+    }
+  }
 
   /// Called when the registry changes — cached results were filtered and
   /// ordered against the old verdicts, so they are no longer valid.

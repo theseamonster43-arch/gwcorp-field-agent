@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:io' show Platform;
+import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:geolocator/geolocator.dart';
@@ -837,6 +838,32 @@ class _IosSatelliteScreenState extends State<IosSatelliteScreen> {
         const SizedBox(height: 3),
         Text(s.address, maxLines: 1, overflow: TextOverflow.ellipsis,
             style: TextStyle(color: gw.muted, fontSize: 11.5)),
+
+        if (s.photoNames.isNotEmpty) ...[
+          const SizedBox(height: 12),
+          SizedBox(
+            height: 76,
+            child: ListView.separated(
+              scrollDirection: Axis.horizontal,
+              itemCount: s.photoNames.length,
+              separatorBuilder: (_, __) => const SizedBox(width: 8),
+              itemBuilder: (_, i) => _SitePhoto(
+                photoName: s.photoNames[i],
+                // Keyed so switching site swaps the images instead of the
+                // previous ones lingering while the new bytes load.
+                key: ValueKey(s.photoNames[i]),
+              ),
+            ),
+          ),
+        ],
+
+        if (s.description.isNotEmpty) ...[
+          const SizedBox(height: 10),
+          Text(s.description,
+              maxLines: 3, overflow: TextOverflow.ellipsis,
+              style: TextStyle(color: gw.muted, fontSize: 12, height: 1.45)),
+        ],
+
         const SizedBox(height: 12),
 
         if (_routing)
@@ -1185,6 +1212,68 @@ class _RecenterButtonState extends State<_RecenterButton> {
           padding: const EdgeInsets.all(13),
           child: GwIcon(GwIcons.pin, size: 20, color: gw.green),
         ),
+      ),
+    );
+  }
+}
+
+/// One Places photo.
+///
+/// Bytes are fetched through DisposalService so the request carries the app
+/// identity headers the restricted key requires — Image.network cannot, and
+/// would come back 403.
+class _SitePhoto extends StatefulWidget {
+  final String photoName;
+  const _SitePhoto({super.key, required this.photoName});
+
+  @override
+  State<_SitePhoto> createState() => _SitePhotoState();
+}
+
+class _SitePhotoState extends State<_SitePhoto> {
+  Uint8List? _bytes;
+  bool _failed = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _load();
+  }
+
+  Future<void> _load() async {
+    final b = await DisposalService.photoBytes(widget.photoName, maxWidthPx: 300);
+    if (!mounted) return;
+    setState(() {
+      _bytes = b;
+      _failed = b == null;
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final gw = GwTheme.of(context);
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(12),
+      child: SizedBox(
+        width: 104,
+        height: 76,
+        child: _bytes != null
+            ? Image.memory(_bytes!, fit: BoxFit.cover, gaplessPlayback: true)
+            : ColoredBox(
+                color: gw.bg3,
+                child: Center(
+                  child: _failed
+                      ? GwIcon(GwIcons.image, size: 18, color: gw.muted)
+                      : SizedBox(
+                          width: 14,
+                          height: 14,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            valueColor: AlwaysStoppedAnimation<Color>(gw.muted),
+                          ),
+                        ),
+                ),
+              ),
       ),
     );
   }
