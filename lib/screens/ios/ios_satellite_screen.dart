@@ -59,6 +59,11 @@ class _IosSatelliteScreenState extends State<IosSatelliteScreen> {
 
   GoogleMapController? _map;
 
+  // Turn-by-turn state.
+  bool _navigating = false;
+  int _step = 0;
+  StreamSubscription<Position>? _followSub;
+
   @override
   void initState() {
     super.initState();
@@ -68,6 +73,7 @@ class _IosSatelliteScreenState extends State<IosSatelliteScreen> {
   @override
   void dispose() {
     _debounce?.cancel();
+    _followSub?.cancel();
     _searchCtrl.dispose();
     _searchFocus.dispose();
     _map?.dispose();
@@ -190,8 +196,75 @@ class _IosSatelliteScreenState extends State<IosSatelliteScreen> {
         _advice = null;
       });
 
-  Future<void> _startNavigation(DisposalSite s) =>
-      launchUrl(s.directionsUri, mode: LaunchMode.externalApplication);
+  /// Enters guidance: camera follows the agent and the current manoeuvre is
+  /// shown. Deliberately not full navigation — no voice, and rerouting only
+  /// happens if you stray far enough to be clearly off the line.
+  Future<void> _startNavigation(DisposalSite s) async {
+    if (_route == null || _route!.steps.isEmpty) {
+      // No steps to follow, so the Maps app is genuinely the better answer.
+      await launchUrl(s.directionsUri, mode: LaunchMode.externalApplication);
+      return;
+    }
+
+    setState(() { _navigating = true; _step = 0; _listOpen = false; });
+
+    _followSub?.cancel();
+    _followSub = Geolocator.getPositionStream(
+      locationSettings: const LocationSettings(
+        accuracy: LocationAccuracy.high,
+        distanceFilter: 10,
+      ),
+    ).listen(_onMove);
+
+    await _map?.animateCamera(CameraUpdate.newCameraPosition(CameraPosition(
+      target: LatLng(_pos!.latitude, _pos!.longitude),
+      zoom: 17,
+      tilt: 45,
+    )));
+  }
+
+  void _onMove(Position pos) {
+    if (!mounted || !_navigating) return;
+    setState(() => _pos = pos);
+
+    final steps = _route?.steps ?? const <RouteStep>[];
+    if (_step < steps.length) {
+      final target = steps[_step];
+      final left = Geolocator.distanceBetween(
+          pos.latitude, pos.longitude, target.endLat, target.endLng);
+      // Within 30m of the manoeuvre point counts as having taken it.
+      if (left < 30 && _step < steps.length - 1) {
+        setState(() => _step++);
+      }
+    }
+
+    final dest = _selected;
+    if (dest != null) {
+      final toGo = Geolocator.distanceBetween(
+          pos.latitude, pos.longitude, dest.lat, dest.lng);
+      if (toGo < 50) { _stopNavigation(arrived: true); return; }
+    }
+
+    _map?.animateCamera(CameraUpdate.newCameraPosition(CameraPosition(
+      target: LatLng(pos.latitude, pos.longitude),
+      zoom: 17,
+      tilt: 45,
+      bearing: pos.heading,
+    )));
+  }
+
+  void _stopNavigation({bool arrived = false}) {
+    _followSub?.cancel();
+    _followSub = null;
+    if (!mounted) return;
+    setState(() {
+      _navigating = false;
+      _step = 0;
+      if (arrived) _advice = 'You have arrived.';
+    });
+    _map?.animateCamera(CameraUpdate.newCameraPosition(CameraPosition(
+      target: LatLng(_pos!.latitude, _pos!.longitude), zoom: 14)));
+  }
 
   // ── Attach scans ──────────────────────────────────────────────────────────
   Future<void> _pickScans() async {
@@ -349,7 +422,7 @@ class _IosSatelliteScreenState extends State<IosSatelliteScreen> {
         Positioned.fill(child: _mapLayer(gw, barGap)),
 
         // Search + attach, floating over the map
-        Positioned(
+        if (!_navigating) Positioned(
           top: top + 8, left: 12, right: 12,
           child: Column(children: [
             Row(children: [
@@ -412,8 +485,20 @@ class _IosSatelliteScreenState extends State<IosSatelliteScreen> {
         ),
 
         // Route / selection card
-        if (_selected != null)
+        if (_selected != null && !_navigating)
           Positioned(left: 12, right: 12, bottom: barGap + 16, child: _routeCard(gw)),
+
+        if (_navigating) ...[
+          Positioned(
+            top: MediaQuery.of(context).padding.top + 8,
+            left: 12, right: 12,
+            child: _guidanceBanner(gw),
+          ),
+          Positioned(
+            left: 12, right: 12, bottom: barGap + 16,
+            child: _guidanceFooter(gw),
+          ),
+        ],
 
         if (_loading && _sites.isEmpty)
           Positioned(
@@ -652,6 +737,86 @@ class _IosSatelliteScreenState extends State<IosSatelliteScreen> {
         ]),
       ]),
     );
+  }
+
+
+  Widget _guidanceBanner(GwColors gw) {
+    final steps = _route?.steps ?? const <RouteStep>[];
+    final now = _step < steps.length ? steps[_step] : null;
+    return GwGlass(
+      radius: 18,
+      blur: 30,
+      padding: const EdgeInsets.all(16),
+      accent: gw.green,
+      child: Row(children: [
+        GwIcon(_maneuverIcon(now?.maneuver ?? ''), size: 26, color: gw.green),
+        const SizedBox(width: 14),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              if (now != null)
+                Text(now.distanceLabel, style: TextStyle(
+                    color: gw.green, fontSize: 12, fontWeight: FontWeight.w800)),
+              Text(
+                now?.instruction.isNotEmpty == true
+                    ? now!.instruction
+                    : 'Continue to ${_selected?.name ?? "destination"}',
+                style: TextStyle(color: gw.text, fontSize: 15,
+                    fontWeight: FontWeight.w700, height: 1.3)),
+            ],
+          ),
+        ),
+      ]),
+    );
+  }
+
+  Widget _guidanceFooter(GwColors gw) {
+    final steps = _route?.steps ?? const <RouteStep>[];
+    final next = _step + 1 < steps.length ? steps[_step + 1] : null;
+    return GwGlass(
+      radius: 18,
+      blur: 30,
+      padding: const EdgeInsets.all(14),
+      child: Row(children: [
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                _route != null
+                    ? '${_route!.durationLabel}  ·  ${_route!.distanceLabel}'
+                    : 'On the way',
+                style: TextStyle(color: gw.text, fontSize: 14,
+                    fontWeight: FontWeight.w800)),
+              if (next != null)
+                Text('Then ${next.instruction}',
+                    maxLines: 1, overflow: TextOverflow.ellipsis,
+                    style: TextStyle(color: gw.muted, fontSize: 11.5)),
+            ],
+          ),
+        ),
+        const SizedBox(width: 12),
+        GwGlass(
+          radius: 12,
+          onTap: _stopNavigation,
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+          child: Text('End', style: TextStyle(
+              color: gw.red, fontSize: 13, fontWeight: FontWeight.w700)),
+        ),
+      ]),
+    );
+  }
+
+  /// Routes API manoeuvre enum -> the closest glyph we have.
+  String _maneuverIcon(String m) {
+    final v = m.toUpperCase();
+    if (v.contains('LEFT')) return GwIcons.chevronLeft;
+    if (v.contains('RIGHT')) return GwIcons.chevronRight;
+    if (v.contains('DESTINATION')) return GwIcons.pin;
+    return GwIcons.arrowUp;
   }
 
   Widget _siteRow(GwColors gw, DisposalSite s, bool nearest) => GwGlass(

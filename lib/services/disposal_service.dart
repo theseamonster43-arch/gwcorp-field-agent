@@ -39,16 +39,39 @@ class DisposalSite {
       );
 }
 
+/// One manoeuvre along the way — "Turn left onto Al Quoz Street".
+class RouteStep {
+  final String instruction;
+  final String maneuver;
+  final double distanceMeters;
+  final double endLat;
+  final double endLng;
+
+  const RouteStep({
+    required this.instruction,
+    required this.maneuver,
+    required this.distanceMeters,
+    required this.endLat,
+    required this.endLng,
+  });
+
+  String get distanceLabel => distanceMeters < 1000
+      ? '${distanceMeters.round()} m'
+      : '${(distanceMeters / 1000).toStringAsFixed(1)} km';
+}
+
 /// A drivable route to a site: how far, how long, and the line to draw.
 class DisposalRoute {
   final double distanceMeters;
   final Duration duration;
   final List<({double lat, double lng})> points;
+  final List<RouteStep> steps;
 
   const DisposalRoute({
     required this.distanceMeters,
     required this.duration,
     required this.points,
+    this.steps = const [],
   });
 
   String get distanceLabel => distanceMeters < 1000
@@ -262,7 +285,11 @@ class DisposalService {
           'Content-Type': 'application/json',
           'X-Goog-Api-Key': _apiKey,
           'X-Goog-FieldMask':
-              'routes.duration,routes.distanceMeters,routes.polyline.encodedPolyline',
+              'routes.duration,routes.distanceMeters,'
+              'routes.polyline.encodedPolyline,'
+              'routes.legs.steps.navigationInstruction,'
+              'routes.legs.steps.distanceMeters,'
+              'routes.legs.steps.endLocation',
         },
         body: jsonEncode({
           'origin': {
@@ -292,10 +319,32 @@ class DisposalService {
       final seconds = int.tryParse(rawDuration.replaceAll('s', '')) ?? 0;
       final encoded = r['polyline']?['encodedPolyline'] as String?;
 
+      final steps = <RouteStep>[];
+      final legs = r['legs'];
+      if (legs is List && legs.isNotEmpty) {
+        final raw = (legs.first as Map<String, dynamic>)['steps'];
+        if (raw is List) {
+          for (final st in raw) {
+            if (st is! Map<String, dynamic>) continue;
+            final nav = st['navigationInstruction'];
+            final end = st['endLocation']?['latLng'];
+            if (nav is! Map<String, dynamic> || end is! Map<String, dynamic>) continue;
+            steps.add(RouteStep(
+              instruction: (nav['instructions'] as String?) ?? '',
+              maneuver: (nav['maneuver'] as String?) ?? '',
+              distanceMeters: (st['distanceMeters'] as num?)?.toDouble() ?? 0,
+              endLat: (end['latitude'] as num?)?.toDouble() ?? 0,
+              endLng: (end['longitude'] as num?)?.toDouble() ?? 0,
+            ));
+          }
+        }
+      }
+
       return DisposalRoute(
         distanceMeters: (r['distanceMeters'] as num?)?.toDouble() ?? 0,
         duration: Duration(seconds: seconds),
         points: encoded == null ? const [] : decodePolyline(encoded),
+        steps: steps,
       );
     } catch (e) {
       // ignore: avoid_print
