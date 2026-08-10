@@ -346,7 +346,7 @@ class _IosSatelliteScreenState extends State<IosSatelliteScreen> {
     return Scaffold(
       backgroundColor: gw.bg,
       body: Stack(children: [
-        Positioned(top: 0, left: 0, right: 0, bottom: barGap, child: _mapLayer(gw)),
+        Positioned.fill(child: _mapLayer(gw, barGap)),
 
         // Search + attach, floating over the map
         Positioned(
@@ -457,7 +457,7 @@ class _IosSatelliteScreenState extends State<IosSatelliteScreen> {
     );
   }
 
-  Widget _mapLayer(GwColors gw) {
+  Widget _mapLayer(GwColors gw, double barGap) {
     if (!_mapSupported) {
       // Desktop has no map plugin, so the list becomes the whole screen.
       return Padding(
@@ -480,9 +480,11 @@ class _IosSatelliteScreenState extends State<IosSatelliteScreen> {
       myLocationButtonEnabled: false,
       zoomControlsEnabled: false,
       compassEnabled: false,
+      // Moves Google's logo and controls above the tab bar and route card
+      // without shrinking the map itself, so tiles still run edge to edge.
       padding: EdgeInsets.only(
         top: MediaQuery.of(context).padding.top + 70,
-        bottom: _selected != null ? 150 : 0,
+        bottom: barGap + (_selected != null ? 150 : 8),
       ),
       onMapCreated: (c) => _map = c,
       onTap: (_) => setState(() => _listOpen = false),
