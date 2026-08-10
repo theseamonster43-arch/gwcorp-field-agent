@@ -14,6 +14,7 @@ import '../../theme/gw_theme.dart';
 import '../../widgets/gw_glass.dart';
 import '../../widgets/gw_icons.dart';
 import '../../widgets/gw_tab_bar.dart';
+import '../../widgets/gw_voice_panel.dart';
 
 /// Full-bleed satellite map with the search, results and route drawn over it.
 ///
@@ -77,6 +78,11 @@ class _IosSatelliteScreenState extends State<IosSatelliteScreen> {
             pos.latitude, pos.longitude, c.latitude, c.longitude) >
         150;
   }
+
+  bool _voiceOpen = false;
+
+  /// Set on arrival so the destination pin can be shown differently.
+  bool _arrived = false;
 
   // Turn-by-turn state.
   bool _navigating = false;
@@ -229,6 +235,7 @@ class _IosSatelliteScreenState extends State<IosSatelliteScreen> {
       _route = null;
       _listOpen = false;
       _routing = true;
+      _arrived = false;
     });
     if (pos == null) { setState(() => _routing = false); return; }
 
@@ -269,6 +276,45 @@ class _IosSatelliteScreenState extends State<IosSatelliteScreen> {
         ),
       ),
     ));
+  }
+
+
+  /// Everything the assistant should know before answering.
+  String _voiceContext() {
+    final s = _selected;
+    final parts = <String>[];
+    if (s != null) {
+      parts.add('The agent is heading to ${s.name}, ${s.address}.');
+      if (_route != null) {
+        parts.add('It is ${_route!.durationLabel} away (${_route!.distanceLabel}).');
+      }
+      if (s.openNow != null) {
+        parts.add(s.openNow! ? 'It is open now.' : 'It is closed right now.');
+      }
+      if (s.rating != null) {
+        parts.add('Rated ${s.rating!.toStringAsFixed(1)} on Google.');
+      }
+      final rec = s.record;
+      if (rec != null) parts.add(rec.summary + '.');
+    }
+    final scans = _attached;
+    if (scans.isNotEmpty) {
+      final types = <String, int>{};
+      for (final sc in scans) {
+        for (final i in sc.items) {
+          final t = i.wasteType.trim();
+          if (t.isNotEmpty) types[t] = (types[t] ?? 0) + 1;
+        }
+      }
+      parts.add('They are carrying: ' +
+          types.entries.map((e) => '${e.value}x ${e.key}').join(', ') + '.');
+    }
+    return parts.isEmpty ? 'No site selected yet.' : parts.join(' ');
+  }
+
+  String _voiceGreeting() {
+    final s = _selected;
+    return s == null ? 'Hi, GWC here.' : 'Hi, you are heading to ${s.name}.';
   }
 
   SiteVote? _myVote(DisposalSite s) => DisposalRegistry.myVote(s.id);
@@ -373,7 +419,7 @@ class _IosSatelliteScreenState extends State<IosSatelliteScreen> {
     setState(() {
       _navigating = false;
       _step = 0;
-      if (arrived) _advice = 'You have arrived.';
+      if (arrived) { _advice = 'You have arrived.'; _arrived = true; }
     });
     _map?.animateCamera(CameraUpdate.newCameraPosition(CameraPosition(
       target: LatLng(_pos!.latitude, _pos!.longitude), zoom: 14)));
@@ -629,6 +675,17 @@ class _IosSatelliteScreenState extends State<IosSatelliteScreen> {
             crossAxisAlignment: CrossAxisAlignment.end,
             mainAxisSize: MainAxisSize.min,
             children: [
+              if (_voiceOpen) ...[
+                _SlideFadeIn(
+                  from: const Offset(0, 0.3),
+                  child: GwVoicePanel(
+                    context: _voiceContext(),
+                    greeting: _voiceGreeting(),
+                    onClose: () => setState(() => _voiceOpen = false),
+                  ),
+                ),
+                const SizedBox(height: 12),
+              ],
               if (_mapSupported && _pos != null && _offCentre) ...[
                 _SlideFadeIn(
                   from: const Offset(0.4, 0),
@@ -740,6 +797,13 @@ class _IosSatelliteScreenState extends State<IosSatelliteScreen> {
               s.id == _selected?.id
                   ? BitmapDescriptor.hueGreen
                   : BitmapDescriptor.hueOrange),
+            // Arriving raises the destination pin off the map and gives it
+            // a shadow, so it reads as standing up rather than lying flat.
+            flat: false,
+            zIndex: s.id == _selected?.id ? 2.0 : 1.0,
+            anchor: s.id == _selected?.id && _arrived
+                ? const Offset(0.5, 1.4)
+                : const Offset(0.5, 1.0),
           ),
       },
       polylines: {
@@ -1101,7 +1165,29 @@ class _IosSatelliteScreenState extends State<IosSatelliteScreen> {
             style: TextStyle(color: gw.text, fontSize: 15,
                 fontWeight: FontWeight.w800)),
         ),
-        const SizedBox(width: 12),
+        const SizedBox(width: 10),
+        // Ask GWC — sits left of End so the destructive action stays
+        // furthest from the thumb.
+        GestureDetector(
+          onTap: () => setState(() => _voiceOpen = true),
+          child: Container(
+            padding: const EdgeInsets.all(11),
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              gradient: LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [const Color(0xFF4ADE80), gw.green, gw.greenDim],
+              ),
+              boxShadow: [
+                BoxShadow(color: gw.green.withOpacity(.45),
+                    blurRadius: 14, offset: const Offset(0, 4)),
+              ],
+            ),
+            child: const GwIcon(GwIcons.sparkle, size: 16, color: Colors.white),
+          ),
+        ),
+        const SizedBox(width: 10),
         GestureDetector(
           onTap: _stopNavigation,
           child: Container(

@@ -44,6 +44,8 @@ dependencies:
   # Satellite / disposal finder
   google_maps_flutter: ^2.9.0
   geolocator: ^13.0.1
+  speech_to_text: ^7.0.0
+  flutter_tts: ^4.2.0
 
 dev_dependencies:
   flutter_test:
