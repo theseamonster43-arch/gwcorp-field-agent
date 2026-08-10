@@ -699,6 +699,10 @@ class _IosSatelliteScreenState extends State<IosSatelliteScreen> {
       myLocationButtonEnabled: false,
       zoomControlsEnabled: false,
       compassEnabled: false,
+      // Live congestion, but only once a route is on screen — it clutters the
+      // map while you are still browsing and is the whole point once you are
+      // deciding whether to set off.
+      trafficEnabled: _selected != null || _navigating,
       // Moves Google's logo and controls above the tab bar and route card
       // without shrinking the map itself, so tiles still run edge to edge.
       padding: EdgeInsets.only(
@@ -1024,38 +1028,45 @@ class _IosSatelliteScreenState extends State<IosSatelliteScreen> {
   }
 
   Widget _guidanceFooter(GwColors gw) {
-    final steps = _route?.steps ?? const <RouteStep>[];
-    final next = _step + 1 < steps.length ? steps[_step + 1] : null;
+    // No "then next turn" line here — the banner at the top already carries
+    // the instruction, and repeating it just crowds the ETA.
     return GwGlass(
       radius: 18,
       blur: 30,
       padding: const EdgeInsets.all(14),
       child: Row(children: [
         Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text(
-                _route != null
-                    ? '${_route!.durationLabel}  ·  ${_route!.distanceLabel}'
-                    : 'On the way',
-                style: TextStyle(color: gw.text, fontSize: 14,
-                    fontWeight: FontWeight.w800)),
-              if (next != null)
-                Text('Then ${next.instruction}',
-                    maxLines: 1, overflow: TextOverflow.ellipsis,
-                    style: TextStyle(color: gw.muted, fontSize: 11.5)),
-            ],
-          ),
+          child: Text(
+            _route != null
+                ? '${_route!.durationLabel}  ·  ${_route!.distanceLabel}'
+                : 'On the way',
+            style: TextStyle(color: gw.text, fontSize: 15,
+                fontWeight: FontWeight.w800)),
         ),
         const SizedBox(width: 12),
-        GwGlass(
-          radius: 12,
+        GestureDetector(
           onTap: _stopNavigation,
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-          child: Text('End', style: TextStyle(
-              color: gw.red, fontSize: 13, fontWeight: FontWeight.w700)),
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 11),
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(12),
+              gradient: LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [gw.red, const Color(0xFFB91C1C)],
+              ),
+              boxShadow: [
+                BoxShadow(
+                  color: gw.red.withOpacity(.45),
+                  blurRadius: 14,
+                  offset: const Offset(0, 4),
+                ),
+              ],
+            ),
+            child: const Text('End', style: TextStyle(
+                color: Colors.white, fontSize: 13,
+                fontWeight: FontWeight.w800)),
+          ),
         ),
       ]),
     );
