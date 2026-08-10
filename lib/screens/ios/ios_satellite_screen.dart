@@ -13,6 +13,7 @@ import '../../services/disposal_service.dart';
 import '../../theme/gw_theme.dart';
 import '../../widgets/gw_glass.dart';
 import '../../widgets/gw_icons.dart';
+import '../../widgets/gw_responsive.dart';
 import '../../widgets/gw_tab_bar.dart';
 import '../../widgets/gw_voice_panel.dart';
 
@@ -620,6 +621,11 @@ class _IosSatelliteScreenState extends State<IosSatelliteScreen> {
   Widget build(BuildContext context) {
     final gw = GwTheme.of(context);
     final top = MediaQuery.of(context).padding.top;
+    // On a tablet the controls collect into a column down the left rather
+    // than stretching edge to edge — a search bar a metre wide is no easier
+    // to use, and it buries the map.
+    final wide = gwIsWide(context);
+    const panelW = 380.0;
     // Inside the phone shell the floating tab bar overlaps the bottom of the
     // screen, so the map has to stop above it rather than run underneath.
     final barGap = (!widget.showBack && _mapSupported)
@@ -633,7 +639,10 @@ class _IosSatelliteScreenState extends State<IosSatelliteScreen> {
 
         // Search + attach, floating over the map
         if (!_navigating) Positioned(
-          top: top + 8, left: 12, right: 12,
+          top: top + 8,
+          left: 12,
+          right: wide ? null : 12,
+          width: wide ? panelW : null,
           child: _SlideFadeIn(
             from: const Offset(0, -0.3),
             child: Column(children: [
@@ -711,12 +720,18 @@ class _IosSatelliteScreenState extends State<IosSatelliteScreen> {
 
         // Route / selection card
         if (_voiceOpen)
-          Positioned.fill(child: IgnorePointer(child: _voiceTranscript(gw))),
+          Positioned(
+            top: 0, bottom: 0, right: 0,
+            left: wide ? panelW + 24 : 0,
+            child: IgnorePointer(child: _voiceTranscript(gw)),
+          ),
 
         if (_navigating && !_voiceOpen)
           Positioned(
             top: MediaQuery.of(context).padding.top + 8,
-            left: 12, right: 12,
+            left: 12,
+            right: wide ? null : 12,
+            width: wide ? panelW : null,
             child: _SlideFadeIn(from: const Offset(0, -0.35), child: _guidanceBanner(gw)),
           ),
 
@@ -724,7 +739,10 @@ class _IosSatelliteScreenState extends State<IosSatelliteScreen> {
         // button always sits clear of whatever card is showing instead of
         // being positioned against a guessed height.
         Positioned(
-          left: 12, right: 12, bottom: barGap + 16,
+          left: 12,
+          right: wide ? null : 12,
+          width: wide ? panelW : null,
+          bottom: barGap + 16,
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.end,
             mainAxisSize: MainAxisSize.min,
@@ -838,8 +856,11 @@ class _IosSatelliteScreenState extends State<IosSatelliteScreen> {
       // Moves Google's logo and controls above the tab bar and route card
       // without shrinking the map itself, so tiles still run edge to edge.
       padding: EdgeInsets.only(
-        top: MediaQuery.of(context).padding.top + 70,
-        bottom: barGap + (_selected != null ? 150 : 8),
+        left: gwIsWide(context) ? 404 : 0,
+        top: gwIsWide(context)
+            ? MediaQuery.of(context).padding.top + 8
+            : MediaQuery.of(context).padding.top + 70,
+        bottom: barGap + (_selected != null && !gwIsWide(context) ? 150 : 8),
       ),
       onMapCreated: (c) => _map = c,
       onTap: (_) => setState(() => _listOpen = false),
