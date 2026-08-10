@@ -39,6 +39,32 @@ class DisposalSite {
       );
 }
 
+/// A drivable route to a site: how far, how long, and the line to draw.
+class DisposalRoute {
+  final double distanceMeters;
+  final Duration duration;
+  final List<({double lat, double lng})> points;
+
+  const DisposalRoute({
+    required this.distanceMeters,
+    required this.duration,
+    required this.points,
+  });
+
+  String get distanceLabel => distanceMeters < 1000
+      ? '${distanceMeters.round()} m'
+      : '${(distanceMeters / 1000).toStringAsFixed(1)} km';
+
+  String get durationLabel {
+    final m = duration.inMinutes;
+    if (m < 1) return 'under a minute';
+    if (m < 60) return '$m min';
+    final h = m ~/ 60;
+    final rem = m % 60;
+    return rem == 0 ? '$h hr' : '$h hr $rem min';
+  }
+}
+
 /// Where each kind of waste is allowed to go.
 ///
 /// The classifier already tells us what is in a batch, so the app can send the
@@ -214,6 +240,97 @@ class DisposalService {
   }
 
   static void clearCache() => _cache.clear();
+
+  // ── Routing ───────────────────────────────────────────────────────────────
+
+  static const _routesEndpoint =
+      'https://routes.googleapis.com/directions/v2:computeRoutes';
+
+  /// Drive time and the line to draw on the map. Null when Routes is
+  /// unavailable — callers fall back to straight-line distance.
+  static Future<DisposalRoute?> route({
+    required double fromLat,
+    required double fromLng,
+    required double toLat,
+    required double toLng,
+  }) async {
+    try {
+      final res = await http.post(
+        Uri.parse(_routesEndpoint),
+        headers: {
+          ..._appHeaders,
+          'Content-Type': 'application/json',
+          'X-Goog-Api-Key': _apiKey,
+          'X-Goog-FieldMask':
+              'routes.duration,routes.distanceMeters,routes.polyline.encodedPolyline',
+        },
+        body: jsonEncode({
+          'origin': {
+            'location': {'latLng': {'latitude': fromLat, 'longitude': fromLng}}
+          },
+          'destination': {
+            'location': {'latLng': {'latitude': toLat, 'longitude': toLng}}
+          },
+          'travelMode': 'DRIVE',
+          'routingPreference': 'TRAFFIC_AWARE',
+        }),
+      );
+
+      if (res.statusCode != 200) {
+        // ignore: avoid_print
+        print('DisposalService.route: HTTP ${res.statusCode} — ${res.body}');
+        return null;
+      }
+
+      final body   = jsonDecode(res.body) as Map<String, dynamic>;
+      final routes = body['routes'];
+      if (routes is! List || routes.isEmpty) return null;
+      final r = routes.first as Map<String, dynamic>;
+
+      // Duration comes back as protobuf seconds, e.g. "834s".
+      final rawDuration = (r['duration'] as String?) ?? '';
+      final seconds = int.tryParse(rawDuration.replaceAll('s', '')) ?? 0;
+      final encoded = r['polyline']?['encodedPolyline'] as String?;
+
+      return DisposalRoute(
+        distanceMeters: (r['distanceMeters'] as num?)?.toDouble() ?? 0,
+        duration: Duration(seconds: seconds),
+        points: encoded == null ? const [] : decodePolyline(encoded),
+      );
+    } catch (e) {
+      // ignore: avoid_print
+      print('DisposalService.route: $e');
+      return null;
+    }
+  }
+
+  /// Google's encoded polyline format — a compact delta encoding of the path.
+  static List<({double lat, double lng})> decodePolyline(String encoded) {
+    final points = <({double lat, double lng})>[];
+    var index = 0, lat = 0, lng = 0;
+
+    while (index < encoded.length) {
+      int result = 0, shift = 0, b;
+      do {
+        b = encoded.codeUnitAt(index++) - 63;
+        result |= (b & 0x1f) << shift;
+        shift += 5;
+      } while (b >= 0x20);
+      lat += (result & 1) != 0 ? ~(result >> 1) : (result >> 1);
+
+      result = 0;
+      shift = 0;
+      do {
+        b = encoded.codeUnitAt(index++) - 63;
+        result |= (b & 0x1f) << shift;
+        shift += 5;
+      } while (b >= 0x20);
+      lng += (result & 1) != 0 ? ~(result >> 1) : (result >> 1);
+
+      points.add((lat: lat / 1e5, lng: lng / 1e5));
+    }
+    return points;
+  }
 
   /// Great-circle distance in metres.
   static double _haversine(double lat1, double lon1, double lat2, double lon2) {

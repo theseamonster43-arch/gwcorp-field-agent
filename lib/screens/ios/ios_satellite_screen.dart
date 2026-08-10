@@ -10,13 +10,15 @@ import '../../services/disposal_service.dart';
 import '../../theme/gw_theme.dart';
 import '../../widgets/gw_glass.dart';
 import '../../widgets/gw_icons.dart';
-import '../../widgets/gw_responsive.dart';
 
-/// Search for a disposal site, attach the scans you are carrying, and let the
-/// assistant say which one to drive to.
+/// Full-bleed satellite map with the search, results and route drawn over it.
 ///
-/// google_maps_flutter has no Windows/Linux implementation, so desktop gets
-/// everything except the map. The Places lookup is plain HTTP and works
+/// The route is computed and drawn in-app rather than punting to the Maps app,
+/// so the agent sees drive time before committing. Handing off to Maps stays
+/// available as "Start", which is where turn-by-turn belongs.
+///
+/// google_maps_flutter has no Windows/Linux implementation, so desktop falls
+/// back to the list. The Places and Routes calls are plain HTTP and work
 /// everywhere.
 class IosSatelliteScreen extends StatefulWidget {
   final bool showBack;
@@ -36,16 +38,22 @@ class _IosSatelliteScreenState extends State<IosSatelliteScreen> {
   static bool get _mapSupported => Platform.isAndroid || Platform.isIOS;
 
   final _searchCtrl = TextEditingController();
+  final _searchFocus = FocusNode();
   Timer? _debounce;
 
   Position? _pos;
   List<DisposalSite> _sites = [];
-  final Set<String> _picked = {}; // session ids attached as context
+  final Set<String> _picked = {};
+
+  DisposalSite? _selected;
+  DisposalRoute? _route;
+  bool _routing = false;
+
+  bool _listOpen = false;
   bool _loading = true;
   String? _error;
 
   String? _advice;
-  DisposalSite? _advisedSite;
   bool _thinking = false;
 
   GoogleMapController? _map;
@@ -60,6 +68,7 @@ class _IosSatelliteScreenState extends State<IosSatelliteScreen> {
   void dispose() {
     _debounce?.cancel();
     _searchCtrl.dispose();
+    _searchFocus.dispose();
     _map?.dispose();
     super.dispose();
   }
@@ -71,19 +80,17 @@ class _IosSatelliteScreenState extends State<IosSatelliteScreen> {
     setState(() { _loading = true; _error = null; });
     try {
       if (!await Geolocator.isLocationServiceEnabled()) {
-        setState(() { _loading = false; _error = 'Turn on location services to find nearby sites.'; });
+        setState(() { _loading = false; _error = 'Turn on location services.'; });
         return;
       }
       var perm = await Geolocator.checkPermission();
       if (perm == LocationPermission.denied) perm = await Geolocator.requestPermission();
       if (perm == LocationPermission.denied || perm == LocationPermission.deniedForever) {
-        setState(() { _loading = false; _error = 'Location permission is needed to find the nearest site.'; });
+        setState(() { _loading = false; _error = 'Location permission is needed.'; });
         return;
       }
 
-      // A cold GPS fix can take 30s+ indoors, and on desktop there is often no
-      // position source at all. Show results from the cached fix immediately
-      // and let the accurate one refine them when it lands.
+      // Cached fix first so the map has something to show immediately.
       final cached = await Geolocator.getLastKnownPosition();
       if (cached != null && mounted) {
         setState(() => _pos = cached);
@@ -104,19 +111,16 @@ class _IosSatelliteScreenState extends State<IosSatelliteScreen> {
       if (moved) await _search();
     } on TimeoutException {
       if (!mounted) return;
-      // A cached fix is good enough to keep going; only complain without one.
-      if (_pos == null) {
-        setState(() { _loading = false; _error = 'Timed out getting your location. Try again, or move somewhere with a clearer signal.'; });
-      } else {
-        setState(() => _loading = false);
-      }
+      setState(() {
+        _loading = false;
+        if (_pos == null) _error = 'Timed out getting your location.';
+      });
     } catch (_) {
       if (!mounted) return;
-      if (_pos == null) {
-        setState(() { _loading = false; _error = 'Could not get your location.'; });
-      } else {
-        setState(() => _loading = false);
-      }
+      setState(() {
+        _loading = false;
+        if (_pos == null) _error = 'Could not get your location.';
+      });
     }
   }
 
@@ -135,19 +139,57 @@ class _IosSatelliteScreenState extends State<IosSatelliteScreen> {
     setState(() {
       _sites = sites;
       _loading = false;
+      _listOpen = sites.isNotEmpty;
       _error = sites.isEmpty
-          ? (DisposalService.lastError ?? 'Nothing found nearby. Try another search.')
+          ? (DisposalService.lastError ?? 'Nothing found nearby.')
           : null;
     });
   }
 
   void _onQueryChanged(String _) {
-    // One Places call per pause, not per keystroke — it is a billed SKU.
     _debounce?.cancel();
     _debounce = Timer(const Duration(milliseconds: 600), _search);
   }
 
-  Future<void> _navigate(DisposalSite s) =>
+  /// Draws the route and frames both ends on the map.
+  Future<void> _select(DisposalSite s) async {
+    final pos = _pos;
+    _searchFocus.unfocus();
+    setState(() {
+      _selected = s;
+      _route = null;
+      _listOpen = false;
+      _routing = true;
+    });
+    if (pos == null) { setState(() => _routing = false); return; }
+
+    final r = await DisposalService.route(
+      fromLat: pos.latitude, fromLng: pos.longitude,
+      toLat: s.lat, toLng: s.lng,
+    );
+    if (!mounted) return;
+    setState(() { _route = r; _routing = false; });
+
+    await _map?.animateCamera(CameraUpdate.newLatLngBounds(
+      LatLngBounds(
+        southwest: LatLng(
+          pos.latitude  < s.lat ? pos.latitude  : s.lat,
+          pos.longitude < s.lng ? pos.longitude : s.lng),
+        northeast: LatLng(
+          pos.latitude  > s.lat ? pos.latitude  : s.lat,
+          pos.longitude > s.lng ? pos.longitude : s.lng),
+      ),
+      64,
+    ));
+  }
+
+  void _clearRoute() => setState(() {
+        _selected = null;
+        _route = null;
+        _advice = null;
+      });
+
+  Future<void> _startNavigation(DisposalSite s) =>
       launchUrl(s.directionsUri, mode: LaunchMode.externalApplication);
 
   // ── Attach scans ──────────────────────────────────────────────────────────
@@ -173,8 +215,7 @@ class _IosSatelliteScreenState extends State<IosSatelliteScreen> {
                 width: 38, height: 4,
                 decoration: BoxDecoration(
                   color: gw.muted.withOpacity(.5),
-                  borderRadius: BorderRadius.circular(99),
-                ),
+                  borderRadius: BorderRadius.circular(99)),
               ),
               const SizedBox(height: 14),
               Text('Add your scans', style: TextStyle(
@@ -191,7 +232,7 @@ class _IosSatelliteScreenState extends State<IosSatelliteScreen> {
                 )
               else
                 ConstrainedBox(
-                  constraints: const BoxConstraints(maxHeight: 320),
+                  constraints: const BoxConstraints(maxHeight: 300),
                   child: ListView.separated(
                     shrinkWrap: true,
                     itemCount: widget.sessions.length,
@@ -208,7 +249,7 @@ class _IosSatelliteScreenState extends State<IosSatelliteScreen> {
                           setSheet(() {
                             if (on) { _picked.remove(s.id); } else { _picked.add(s.id); }
                           });
-                          setState(() { _advice = null; _advisedSite = null; });
+                          setState(() => _advice = null);
                         },
                         child: Row(children: [
                           GwIcon(on ? GwIcons.checkCircle : GwIcons.scan,
@@ -242,11 +283,11 @@ class _IosSatelliteScreenState extends State<IosSatelliteScreen> {
     if (mounted) setState(() {});
   }
 
-  // ── Ask the assistant ─────────────────────────────────────────────────────
+  // ── Assistant ─────────────────────────────────────────────────────────────
   Future<void> _ask() async {
     final scans = _attached;
     if (scans.isEmpty || _sites.isEmpty) return;
-    setState(() { _thinking = true; _advice = null; _advisedSite = null; });
+    setState(() { _thinking = true; _advice = null; });
 
     final types = <String, int>{};
     var hazard = 0;
@@ -257,325 +298,384 @@ class _IosSatelliteScreenState extends State<IosSatelliteScreen> {
         if (t.isNotEmpty) types[t] = (types[t] ?? 0) + 1;
       }
     }
-
     final load = types.entries.map((e) => '${e.value}x ${e.key}').join(', ');
-    final list = _sites
-        .take(8)
-        .map((s) => '- ${s.name} (${s.distanceLabel}) — ${s.address}')
+    final list = _sites.take(8)
+        .map((s) => '- ${s.name} (${s.distanceLabel})')
         .join('\n');
 
     final reply = await ClaudeService.chat(
       systemContext:
-          'You route waste to disposal sites. Reply in at most 3 short '
-          'sentences. Start with the exact site name from the list, then say '
-          'why it suits this load. Warn plainly if hazardous items need '
-          'special handling or if no listed site looks appropriate.',
-      messages: [
-        {
-          'role': 'user',
-          'content': 'I am carrying: $load. Hazardous items: $hazard.\n\n'
-              'Nearby sites:\n$list\n\nWhich should I take this to?',
-        }
-      ],
+          'You route waste to disposal sites. Reply in at most 2 short '
+          'sentences. Start with the exact site name from the list. Warn '
+          'plainly if hazardous items need special handling.',
+      messages: [{
+        'role': 'user',
+        'content': 'Carrying: $load. Hazardous items: $hazard.\n\n'
+            'Nearby:\n$list\n\nWhich one?',
+      }],
     );
 
     if (!mounted) return;
     setState(() {
       _thinking = false;
-      _advice = reply ?? (ClaudeService.lastError ?? 'The assistant is unavailable.');
-      // Link the answer back to a real site so the button can navigate.
-      if (reply != null) {
-        for (final s in _sites) {
-          if (reply.toLowerCase().contains(s.name.toLowerCase())) {
-            _advisedSite = s;
-            break;
-          }
+      _advice = reply ?? (ClaudeService.lastError ?? 'Assistant unavailable.');
+    });
+
+    // Jump straight to the site it named.
+    if (reply != null) {
+      for (final s in _sites) {
+        if (reply.toLowerCase().contains(s.name.toLowerCase())) {
+          await _select(s);
+          break;
         }
       }
-    });
+    }
   }
 
   @override
   Widget build(BuildContext context) {
     final gw = GwTheme.of(context);
-    final g  = gwGutter(context);
-    final attached = _attached;
+    final top = MediaQuery.of(context).padding.top;
 
     return Scaffold(
-      backgroundColor: Colors.transparent,
-      body: SafeArea(
-        child: Column(children: [
-          // Header
-          Padding(
-            padding: EdgeInsets.fromLTRB(widget.showBack ? 8 : g, 4, g, 0),
-            child: Row(children: [
+      backgroundColor: gw.bg,
+      body: Stack(children: [
+        Positioned.fill(child: _mapLayer(gw)),
+
+        // Search + attach, floating over the map
+        Positioned(
+          top: top + 8, left: 12, right: 12,
+          child: Column(children: [
+            Row(children: [
               if (widget.showBack) ...[
                 GwGlassIcon(icon: GwIcons.chevronLeft, size: 16,
                     onTap: () => Navigator.of(context).pop()),
-                const SizedBox(width: 12),
+                const SizedBox(width: 8),
               ],
-              Expanded(
-                child: Text('Disposal', style: TextStyle(
-                  color: gw.text, fontSize: gwTitleSize(context),
-                  fontWeight: FontWeight.w800, letterSpacing: -0.8)),
-              ),
-              GwGlassIcon(icon: GwIcons.pin, size: 17, onTap: _locate),
-            ]),
-          ),
-          const SizedBox(height: 12),
-
-          // Search + attach
-          Padding(
-            padding: EdgeInsets.symmetric(horizontal: g),
-            child: Row(children: [
               Expanded(
                 child: GwGlass(
                   radius: 16,
-                  blur: 20,
+                  blur: 24,
                   padding: const EdgeInsets.symmetric(horizontal: 14),
-                  child: TextField(
-                    controller: _searchCtrl,
-                    onChanged: _onQueryChanged,
-                    onSubmitted: (_) => _search(),
-                    style: TextStyle(color: gw.text, fontSize: 13.5),
-                    cursorColor: gw.green,
-                    decoration: InputDecoration(
-                      border: InputBorder.none,
-                      isDense: true,
-                      contentPadding: const EdgeInsets.symmetric(vertical: 14),
-                      hintText: 'Search',
-                      hintStyle: TextStyle(color: gw.muted, fontSize: 13.5),
-                      icon: GwIcon(GwIcons.search, size: 18, color: gw.muted),
+                  child: Row(children: [
+                    Expanded(
+                      child: TextField(
+                        controller: _searchCtrl,
+                        focusNode: _searchFocus,
+                        onChanged: _onQueryChanged,
+                        onSubmitted: (_) => _search(),
+                        onTap: () => setState(() => _listOpen = _sites.isNotEmpty),
+                        style: TextStyle(color: gw.text, fontSize: 13.5),
+                        cursorColor: gw.green,
+                        decoration: InputDecoration(
+                          border: InputBorder.none,
+                          isDense: true,
+                          contentPadding: const EdgeInsets.symmetric(vertical: 14),
+                          hintText: 'Search',
+                          hintStyle: TextStyle(color: gw.muted, fontSize: 13.5),
+                          icon: GwIcon(GwIcons.search, size: 18, color: gw.muted),
+                        ),
+                      ),
                     ),
-                  ),
+                    if (_sites.isNotEmpty)
+                      GestureDetector(
+                        onTap: () => setState(() => _listOpen = !_listOpen),
+                        child: Padding(
+                          padding: const EdgeInsets.only(left: 6),
+                          child: GwIcon(
+                            _listOpen ? GwIcons.chevronLeft : GwIcons.chevronRight,
+                            size: 16, color: gw.muted),
+                        ),
+                      ),
+                  ]),
                 ),
               ),
-              const SizedBox(width: 10),
+              const SizedBox(width: 8),
               GwGlassIcon(icon: GwIcons.plus, size: 18, onTap: _pickScans),
             ]),
-          ),
 
-          // Attached scans
-          if (attached.isNotEmpty) ...[
-            const SizedBox(height: 10),
-            SizedBox(
-              height: 30,
-              child: ListView.separated(
-                scrollDirection: Axis.horizontal,
-                padding: EdgeInsets.symmetric(horizontal: g),
-                itemCount: attached.length,
-                separatorBuilder: (_, __) => const SizedBox(width: 8),
-                itemBuilder: (_, i) {
-                  final s = attached[i];
-                  return Container(
-                    alignment: Alignment.center,
-                    padding: const EdgeInsets.symmetric(horizontal: 12),
-                    decoration: BoxDecoration(
-                      color: gw.green.withOpacity(.16),
-                      borderRadius: BorderRadius.circular(99),
-                      border: Border.all(color: gw.green.withOpacity(.4)),
-                    ),
-                    child: Text(
-                      '${s.location.isNotEmpty ? s.location : 'Scan'} · ${s.itemCount}',
-                      style: TextStyle(color: gw.green,
-                          fontSize: 11.5, fontWeight: FontWeight.w700)),
-                  );
-                },
-              ),
-            ),
-            const SizedBox(height: 10),
-            Padding(
-              padding: EdgeInsets.symmetric(horizontal: g),
-              child: SizedBox(
-                width: double.infinity,
-                child: GwGlass(
-                  radius: 14,
-                  accent: gw.green,
-                  onTap: _thinking ? null : _ask,
-                  padding: const EdgeInsets.symmetric(vertical: 12),
-                  child: Row(mainAxisAlignment: MainAxisAlignment.center, children: [
-                    GwIcon(GwIcons.sparkle, size: 16, color: gw.green),
-                    const SizedBox(width: 8),
-                    Text(_thinking ? 'Thinking…' : 'Where do I take this?',
-                        style: TextStyle(color: gw.green,
-                            fontSize: 13.5, fontWeight: FontWeight.w700)),
-                  ]),
-                ),
-              ),
-            ),
-          ],
-
-          // Advice
-          if (_advice != null) ...[
-            const SizedBox(height: 10),
-            Padding(
-              padding: EdgeInsets.symmetric(horizontal: g),
-              child: GwGlass(
-                radius: 18,
-                accent: gw.green,
-                padding: const EdgeInsets.all(14),
-                child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                  Row(children: [
-                    GwIcon(GwIcons.sparkle, size: 15, color: gw.green),
-                    const SizedBox(width: 7),
-                    Text('Recommendation', style: TextStyle(color: gw.green,
-                        fontSize: 11.5, fontWeight: FontWeight.w800,
-                        letterSpacing: .4)),
-                  ]),
-                  const SizedBox(height: 8),
-                  Text(_advice!, style: TextStyle(
-                      color: gw.text, fontSize: 13, height: 1.5)),
-                  if (_advisedSite != null) ...[
-                    const SizedBox(height: 12),
-                    GwGlass(
-                      radius: 12,
-                      onTap: () => _navigate(_advisedSite!),
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 14, vertical: 10),
-                      child: Row(mainAxisSize: MainAxisSize.min, children: [
-                        GwIcon(GwIcons.arrowRight, size: 15, color: gw.green),
-                        const SizedBox(width: 8),
-                        Text('Directions to ${_advisedSite!.name}',
-                            style: TextStyle(color: gw.green,
-                                fontSize: 12.5, fontWeight: FontWeight.w700)),
-                      ]),
-                    ),
-                  ],
-                ]),
-              ),
-            ),
-          ],
-
-          const SizedBox(height: 12),
-
-          if (_mapSupported && _pos != null) ...[
-            Padding(
-              padding: EdgeInsets.symmetric(horizontal: g),
-              child: ClipRRect(
-                borderRadius: BorderRadius.circular(18),
-                child: SizedBox(
-                  height: 170,
-                  child: GoogleMap(
-                    mapType: MapType.hybrid,
-                    initialCameraPosition: CameraPosition(
-                      target: LatLng(_pos!.latitude, _pos!.longitude), zoom: 12),
-                    myLocationEnabled: true,
-                    myLocationButtonEnabled: false,
-                    zoomControlsEnabled: false,
-                    onMapCreated: (c) => _map = c,
-                    markers: {
-                      for (final s in _sites)
-                        Marker(
-                          markerId: MarkerId(s.id),
-                          position: LatLng(s.lat, s.lng),
-                          infoWindow: InfoWindow(
-                            title: s.name,
-                            snippet: s.distanceLabel,
-                            onTap: () => _navigate(s),
-                          ),
-                        ),
-                    },
-                  ),
-                ),
-              ),
-            ),
-            const SizedBox(height: 14),
-          ],
-
-          Expanded(child: _results(gw, g)),
-        ]),
-      ),
-    );
-  }
-
-  Widget _results(GwColors gw, double g) {
-    if (_loading) {
-      return Center(child: SizedBox(
-        width: 22, height: 22,
-        child: CircularProgressIndicator(
-          strokeWidth: 2, valueColor: AlwaysStoppedAnimation<Color>(gw.green)),
-      ));
-    }
-    if (_error != null) {
-      return Center(
-        child: Padding(
-          padding: EdgeInsets.symmetric(horizontal: g + 12),
-          child: Column(mainAxisSize: MainAxisSize.min, children: [
-            GwIcon(GwIcons.pin, size: 32, color: gw.muted),
-            const SizedBox(height: 12),
-            Text(_error!, textAlign: TextAlign.center,
-                style: TextStyle(color: gw.muted, fontSize: 13, height: 1.45)),
-            const SizedBox(height: 14),
-            GwGlass(
-              radius: 12,
-              accent: gw.green,
-              onTap: _locate,
-              padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 10),
-              child: Text('Try again', style: TextStyle(
-                color: gw.green, fontSize: 13, fontWeight: FontWeight.w700)),
-            ),
+            if (_listOpen) ...[
+              const SizedBox(height: 8),
+              _dropdown(gw),
+            ],
+            if (_attached.isNotEmpty && !_listOpen) ...[
+              const SizedBox(height: 8),
+              _askBar(gw),
+            ],
           ]),
         ),
-      );
-    }
 
-    return ListView.separated(
-      padding: EdgeInsets.fromLTRB(g, 0, g, gwPageBottom(context)),
-      itemCount: _sites.length,
-      separatorBuilder: (_, __) => const SizedBox(height: 10),
-      itemBuilder: (_, i) => _row(gw, _sites[i], i == 0),
-    );
-  }
+        // Route / selection card
+        if (_selected != null)
+          Positioned(left: 12, right: 12, bottom: 16, child: _routeCard(gw)),
 
-  Widget _row(GwColors gw, DisposalSite s, bool nearest) {
-    return GwGlass(
-      radius: 18,
-      padding: const EdgeInsets.all(14),
-      accent: nearest ? gw.green : null,
-      onTap: () => _navigate(s),
-      child: Row(children: [
-        Container(
-          width: 44, height: 44,
-          alignment: Alignment.center,
-          decoration: BoxDecoration(
-            color: gw.green.withOpacity(.16),
-            borderRadius: BorderRadius.circular(13),
-          ),
-          child: GwIcon(GwIcons.pin, size: 20, color: gw.green),
-        ),
-        const SizedBox(width: 12),
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text(s.name, maxLines: 1, overflow: TextOverflow.ellipsis,
-                  style: TextStyle(color: gw.text,
-                      fontSize: 14.5, fontWeight: FontWeight.w700)),
-              const SizedBox(height: 3),
-              Text(s.address, maxLines: 1, overflow: TextOverflow.ellipsis,
-                  style: TextStyle(color: gw.muted, fontSize: 11.5)),
-              const SizedBox(height: 5),
-              Row(children: [
-                Text(s.distanceLabel, style: TextStyle(color: gw.green,
-                    fontSize: 11.5, fontWeight: FontWeight.w700)),
-                if (s.openNow != null) ...[
-                  const SizedBox(width: 8),
-                  Text(s.openNow! ? 'Open now' : 'Closed', style: TextStyle(
-                    color: s.openNow! ? gw.green : gw.amber,
-                    fontSize: 11, fontWeight: FontWeight.w600)),
-                ],
-                if (s.rating != null) ...[
-                  const SizedBox(width: 8),
-                  Text('★ ${s.rating!.toStringAsFixed(1)}',
-                      style: TextStyle(color: gw.muted, fontSize: 11)),
-                ],
+        if (_loading && _sites.isEmpty)
+          Positioned(
+            bottom: 24, left: 0, right: 0,
+            child: Center(child: GwGlass(
+              radius: 99,
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+              child: Row(mainAxisSize: MainAxisSize.min, children: [
+                SizedBox(width: 14, height: 14, child: CircularProgressIndicator(
+                  strokeWidth: 2,
+                  valueColor: AlwaysStoppedAnimation<Color>(gw.green))),
+                const SizedBox(width: 10),
+                Text('Finding sites…',
+                    style: TextStyle(color: gw.text, fontSize: 12.5)),
               ]),
-            ],
+            )),
           ),
-        ),
-        GwIcon(GwIcons.arrowRight, size: 17, color: gw.muted),
+
+        if (_error != null && _sites.isEmpty)
+          Positioned(
+            bottom: 24, left: 24, right: 24,
+            child: GwGlass(
+              radius: 16,
+              padding: const EdgeInsets.all(14),
+              child: Column(mainAxisSize: MainAxisSize.min, children: [
+                Text(_error!, textAlign: TextAlign.center,
+                    style: TextStyle(color: gw.muted, fontSize: 12.5, height: 1.4)),
+                const SizedBox(height: 10),
+                GwGlass(
+                  radius: 10,
+                  accent: gw.green,
+                  onTap: _locate,
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                  child: Text('Try again', style: TextStyle(
+                    color: gw.green, fontSize: 12.5, fontWeight: FontWeight.w700)),
+                ),
+              ]),
+            ),
+          ),
       ]),
     );
   }
+
+  Widget _mapLayer(GwColors gw) {
+    if (!_mapSupported) {
+      // Desktop has no map plugin, so the list becomes the whole screen.
+      return Padding(
+        padding: EdgeInsets.only(top: MediaQuery.of(context).padding.top + 76),
+        child: ListView.separated(
+          padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
+          itemCount: _sites.length,
+          separatorBuilder: (_, __) => const SizedBox(height: 10),
+          itemBuilder: (_, i) => _siteRow(gw, _sites[i], i == 0),
+        ),
+      );
+    }
+    if (_pos == null) return ColoredBox(color: gw.bg);
+
+    return GoogleMap(
+      mapType: MapType.hybrid,
+      initialCameraPosition: CameraPosition(
+        target: LatLng(_pos!.latitude, _pos!.longitude), zoom: 13),
+      myLocationEnabled: true,
+      myLocationButtonEnabled: false,
+      zoomControlsEnabled: false,
+      compassEnabled: false,
+      padding: EdgeInsets.only(
+        top: MediaQuery.of(context).padding.top + 70,
+        bottom: _selected != null ? 150 : 0,
+      ),
+      onMapCreated: (c) => _map = c,
+      onTap: (_) => setState(() => _listOpen = false),
+      markers: {
+        for (final s in _sites)
+          Marker(
+            markerId: MarkerId(s.id),
+            position: LatLng(s.lat, s.lng),
+            onTap: () => _select(s),
+            icon: BitmapDescriptor.defaultMarkerWithHue(
+              s.id == _selected?.id
+                  ? BitmapDescriptor.hueGreen
+                  : BitmapDescriptor.hueOrange),
+          ),
+      },
+      polylines: {
+        if (_route != null && _route!.points.isNotEmpty)
+          Polyline(
+            polylineId: const PolylineId('route'),
+            width: 5,
+            color: gw.green,
+            points: [
+              for (final p in _route!.points) LatLng(p.lat, p.lng),
+            ],
+          ),
+      },
+    );
+  }
+
+  Widget _dropdown(GwColors gw) => GwGlass(
+        radius: 18,
+        blur: 26,
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxHeight: 280),
+          child: ListView.separated(
+            shrinkWrap: true,
+            padding: const EdgeInsets.all(8),
+            itemCount: _sites.length,
+            separatorBuilder: (_, __) => Divider(
+              color: gw.border, height: 12, indent: 8, endIndent: 8),
+            itemBuilder: (_, i) {
+              final s = _sites[i];
+              return GestureDetector(
+                behavior: HitTestBehavior.opaque,
+                onTap: () => _select(s),
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
+                  child: Row(children: [
+                    GwIcon(GwIcons.pin, size: 16, color: gw.green),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Text(s.name, maxLines: 1, overflow: TextOverflow.ellipsis,
+                              style: TextStyle(color: gw.text,
+                                  fontSize: 13.5, fontWeight: FontWeight.w700)),
+                          Text(s.address, maxLines: 1, overflow: TextOverflow.ellipsis,
+                              style: TextStyle(color: gw.muted, fontSize: 11)),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Text(s.distanceLabel, style: TextStyle(color: gw.green,
+                        fontSize: 11.5, fontWeight: FontWeight.w700)),
+                  ]),
+                ),
+              );
+            },
+          ),
+        ),
+      );
+
+  Widget _askBar(GwColors gw) => GwGlass(
+        radius: 14,
+        accent: gw.green,
+        onTap: _thinking ? null : _ask,
+        padding: const EdgeInsets.symmetric(vertical: 11),
+        child: Row(mainAxisAlignment: MainAxisAlignment.center, children: [
+          GwIcon(GwIcons.sparkle, size: 15, color: gw.green),
+          const SizedBox(width: 8),
+          Text(
+            _thinking
+                ? 'Thinking…'
+                : 'Where do I take ${_attached.length} scan'
+                    '${_attached.length == 1 ? '' : 's'}?',
+            style: TextStyle(color: gw.green,
+                fontSize: 13, fontWeight: FontWeight.w700)),
+        ]),
+      );
+
+  Widget _routeCard(GwColors gw) {
+    final s = _selected!;
+    return GwGlass(
+      radius: 20,
+      blur: 30,
+      padding: const EdgeInsets.all(16),
+      child: Column(mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start, children: [
+        Row(children: [
+          Expanded(
+            child: Text(s.name, maxLines: 1, overflow: TextOverflow.ellipsis,
+                style: TextStyle(color: gw.text,
+                    fontSize: 15.5, fontWeight: FontWeight.w800)),
+          ),
+          GestureDetector(
+            onTap: _clearRoute,
+            child: GwIcon(GwIcons.close, size: 16, color: gw.muted),
+          ),
+        ]),
+        const SizedBox(height: 3),
+        Text(s.address, maxLines: 1, overflow: TextOverflow.ellipsis,
+            style: TextStyle(color: gw.muted, fontSize: 11.5)),
+        const SizedBox(height: 12),
+
+        if (_routing)
+          Row(children: [
+            SizedBox(width: 13, height: 13, child: CircularProgressIndicator(
+              strokeWidth: 2, valueColor: AlwaysStoppedAnimation<Color>(gw.green))),
+            const SizedBox(width: 9),
+            Text('Working out the drive…',
+                style: TextStyle(color: gw.muted, fontSize: 12)),
+          ])
+        else
+          Row(children: [
+            GwIcon(GwIcons.arrowRight, size: 15, color: gw.green),
+            const SizedBox(width: 7),
+            Text(
+              _route != null
+                  ? '${_route!.durationLabel}  ·  ${_route!.distanceLabel}'
+                  : '${s.distanceLabel} away (straight line)',
+              style: TextStyle(color: gw.text,
+                  fontSize: 13.5, fontWeight: FontWeight.w700)),
+            if (s.openNow != null) ...[
+              const SizedBox(width: 10),
+              Text(s.openNow! ? 'Open' : 'Closed', style: TextStyle(
+                color: s.openNow! ? gw.green : gw.amber,
+                fontSize: 11.5, fontWeight: FontWeight.w600)),
+            ],
+          ]),
+
+        if (_advice != null) ...[
+          const SizedBox(height: 10),
+          Text(_advice!, style: TextStyle(
+              color: gw.muted, fontSize: 12, height: 1.45)),
+        ],
+
+        const SizedBox(height: 14),
+        Row(children: [
+          Expanded(
+            child: GwGlass(
+              radius: 12,
+              accent: gw.green,
+              onTap: () => _startNavigation(s),
+              padding: const EdgeInsets.symmetric(vertical: 11),
+              child: Row(mainAxisAlignment: MainAxisAlignment.center, children: [
+                GwIcon(GwIcons.arrowUp, size: 15, color: gw.green),
+                const SizedBox(width: 8),
+                Text('Start', style: TextStyle(color: gw.green,
+                    fontSize: 13, fontWeight: FontWeight.w700)),
+              ]),
+            ),
+          ),
+        ]),
+      ]),
+    );
+  }
+
+  Widget _siteRow(GwColors gw, DisposalSite s, bool nearest) => GwGlass(
+        radius: 18,
+        padding: const EdgeInsets.all(14),
+        accent: nearest ? gw.green : null,
+        onTap: () => _select(s),
+        child: Row(children: [
+          Container(
+            width: 42, height: 42,
+            alignment: Alignment.center,
+            decoration: BoxDecoration(
+              color: gw.green.withOpacity(.16),
+              borderRadius: BorderRadius.circular(13)),
+            child: GwIcon(GwIcons.pin, size: 19, color: gw.green),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(s.name, maxLines: 1, overflow: TextOverflow.ellipsis,
+                    style: TextStyle(color: gw.text,
+                        fontSize: 14, fontWeight: FontWeight.w700)),
+                Text(s.address, maxLines: 1, overflow: TextOverflow.ellipsis,
+                    style: TextStyle(color: gw.muted, fontSize: 11.5)),
+              ],
+            ),
+          ),
+          Text(s.distanceLabel, style: TextStyle(color: gw.green,
+              fontSize: 11.5, fontWeight: FontWeight.w700)),
+        ]),
+      );
 }
