@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'dart:io' show Platform;
 import 'dart:math' as math;
 import 'package:http/http.dart' as http;
+import '../data/disposal_registry.dart';
 
 /// A place the agent can take waste to.
 class DisposalSite {
@@ -68,9 +69,19 @@ class DisposalSite {
     'gas_station', 'car_dealer', 'real_estate_agency', 'travel_agency',
   ];
 
+  /// What an agent recorded after actually going there. Null when nobody
+  /// has been yet, in which case the heuristics below are all we have.
+  DisposalRecord? get record => DisposalRegistry.of(id);
+
+  bool get isVerified => DisposalRegistry.isVerified(id);
+  bool get isRejected => DisposalRegistry.isRejected(id);
+
   /// True when this is plainly a shop, restaurant or similar and nothing
   /// about it suggests it takes waste. Those get dropped from results.
   bool get isIrrelevant {
+    // Someone has been there, so stop guessing.
+    if (isVerified) return false;
+    if (isRejected) return true;
     if (acceptsWaste) return false;
     return types.any(_notDisposalTypes.contains);
   }
@@ -306,7 +317,11 @@ class DisposalService {
         ..clear()
         ..addAll(kept);
 
-      sites.sort((a, b) => a.distanceMeters.compareTo(b.distanceMeters));
+      // Somewhere the team has actually used outranks a closer unknown.
+      sites.sort((a, b) {
+        if (a.isVerified != b.isVerified) return a.isVerified ? -1 : 1;
+        return a.distanceMeters.compareTo(b.distanceMeters);
+      });
       if (sites.isNotEmpty) lastError = null;
       _cache[key] = sites;
       return sites;
@@ -319,6 +334,10 @@ class DisposalService {
   }
 
   static void clearCache() => _cache.clear();
+
+  /// Called when the registry changes — cached results were filtered and
+  /// ordered against the old verdicts, so they are no longer valid.
+  static void onRegistryChanged() => _cache.clear();
 
   // ── Routing ───────────────────────────────────────────────────────────────
 

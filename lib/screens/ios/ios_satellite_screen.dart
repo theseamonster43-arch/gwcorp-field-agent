@@ -1,9 +1,11 @@
 import 'dart:async';
 import 'dart:io' show Platform;
 import 'package:flutter/material.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:url_launcher/url_launcher.dart';
+import '../../data/disposal_registry.dart';
 import '../../data/models.dart';
 import '../../services/claude_service.dart';
 import '../../services/disposal_service.dart';
@@ -83,11 +85,20 @@ class _IosSatelliteScreenState extends State<IosSatelliteScreen> {
   @override
   void initState() {
     super.initState();
+    DisposalRegistry.start();
+    DisposalRegistry.revision.addListener(_onRegistryChanged);
     _locate();
+  }
+
+  void _onRegistryChanged() {
+    // Cached results were filtered against the old verdicts.
+    DisposalService.onRegistryChanged();
+    if (mounted) _search();
   }
 
   @override
   void dispose() {
+    DisposalRegistry.revision.removeListener(_onRegistryChanged);
     _debounce?.cancel();
     _followSub?.cancel();
     _searchCtrl.dispose();
@@ -237,6 +248,27 @@ class _IosSatelliteScreenState extends State<IosSatelliteScreen> {
       ),
       64,
     ));
+  }
+
+
+  Future<void> _record(DisposalSite s, SiteStatus status) async {
+    final email = FirebaseAuth.instance.currentUser?.email ?? '';
+    await DisposalRegistry.record(
+      placeId: s.id,
+      name: s.name,
+      address: s.address,
+      lat: s.lat,
+      lng: s.lng,
+      status: status,
+      updatedBy: email,
+    );
+    if (!mounted) return;
+    if (status == SiteStatus.rejected) {
+      // It is gone from the results now, so the open card is stale.
+      _clearRoute();
+    } else {
+      setState(() {});
+    }
   }
 
   /// Snaps the camera back to the agent. During guidance it also re-locks
@@ -732,7 +764,15 @@ class _IosSatelliteScreenState extends State<IosSatelliteScreen> {
                           Text(s.name, maxLines: 1, overflow: TextOverflow.ellipsis,
                               style: TextStyle(color: gw.text,
                                   fontSize: 13.5, fontWeight: FontWeight.w700)),
-                          if (!s.acceptsWaste)
+                          if (s.isVerified)
+                            Row(children: [
+                              GwIcon(GwIcons.checkCircle, size: 11, color: gw.green),
+                              const SizedBox(width: 4),
+                              Text('Verified by the team',
+                                  style: TextStyle(color: gw.green,
+                                      fontSize: 10.5, fontWeight: FontWeight.w700)),
+                            ])
+                          else if (!s.acceptsWaste)
                             Text('Not a disposal site',
                                 style: TextStyle(color: gw.amber,
                                     fontSize: 10.5, fontWeight: FontWeight.w700))
@@ -827,7 +867,7 @@ class _IosSatelliteScreenState extends State<IosSatelliteScreen> {
               color: gw.muted, fontSize: 12, height: 1.45)),
         ],
 
-        if (!s.acceptsWaste) ...[
+        if (!s.acceptsWaste && !s.isVerified) ...[
           const SizedBox(height: 12),
           Container(
             padding: const EdgeInsets.all(10),
@@ -854,18 +894,64 @@ class _IosSatelliteScreenState extends State<IosSatelliteScreen> {
           Expanded(
             child: GwGlass(
               radius: 12,
-              accent: s.acceptsWaste ? gw.green : gw.amber,
+              accent: (s.acceptsWaste || s.isVerified) ? gw.green : gw.amber,
               onTap: () => _startNavigation(s),
               padding: const EdgeInsets.symmetric(vertical: 11),
               child: Row(mainAxisAlignment: MainAxisAlignment.center, children: [
                 GwIcon(GwIcons.arrowUp, size: 15,
-                    color: s.acceptsWaste ? gw.green : gw.amber),
+                    color: (s.acceptsWaste || s.isVerified) ? gw.green : gw.amber),
                 const SizedBox(width: 8),
                 Text('Start', style: TextStyle(
-                    color: s.acceptsWaste ? gw.green : gw.amber,
+                    color: (s.acceptsWaste || s.isVerified) ? gw.green : gw.amber,
                     fontSize: 13, fontWeight: FontWeight.w700)),
               ]),
             ),
+          ),
+        ]),
+
+        const SizedBox(height: 12),
+        // What the team knows, recorded after actually going. This is what
+        // replaces guessing from names and place types over time.
+        Row(children: [
+          if (s.isVerified)
+            Expanded(
+              child: Row(children: [
+                GwIcon(GwIcons.checkCircle, size: 14, color: gw.green),
+                const SizedBox(width: 7),
+                Expanded(
+                  child: Text(
+                    s.record?.updatedBy.isNotEmpty == true
+                        ? 'Verified by ${s.record!.updatedBy.split('@').first}'
+                        : 'Verified',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(color: gw.green, fontSize: 11.5,
+                        fontWeight: FontWeight.w700)),
+                ),
+              ]),
+            )
+          else
+            Expanded(
+              child: GestureDetector(
+                behavior: HitTestBehavior.opaque,
+                onTap: () => _record(s, SiteStatus.verified),
+                child: Row(children: [
+                  GwIcon(GwIcons.checkCircle, size: 14, color: gw.muted),
+                  const SizedBox(width: 7),
+                  Text('Takes waste', style: TextStyle(color: gw.muted,
+                      fontSize: 11.5, fontWeight: FontWeight.w600)),
+                ]),
+              ),
+            ),
+          GestureDetector(
+            behavior: HitTestBehavior.opaque,
+            onTap: () => _record(s, SiteStatus.rejected),
+            child: Row(children: [
+              GwIcon(GwIcons.close, size: 13, color: gw.muted),
+              const SizedBox(width: 6),
+              Text('Not a site', style: TextStyle(color: gw.muted,
+                  fontSize: 11.5, fontWeight: FontWeight.w600)),
+            ]),
           ),
         ]),
       ]),
