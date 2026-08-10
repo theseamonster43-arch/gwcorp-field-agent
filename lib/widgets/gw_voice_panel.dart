@@ -207,52 +207,26 @@ class _GwVoicePanelState extends State<GwVoicePanel>
   Widget build(BuildContext context) {
     final gw = GwTheme.of(context);
 
+    // Nothing but the glow and a way out. The status was saying what the wave
+    // already shows, and the conversation is drawn centre-screen anyway.
     final content = Row(children: [
-        Container(
-          width: 34,
-          height: 34,
-          alignment: Alignment.center,
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(11),
-            gradient: LinearGradient(
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-              colors: [const Color(0xFF4ADE80), gw.green, gw.greenDim],
+        Expanded(
+          child: SizedBox(
+            height: 28,
+            child: AnimatedBuilder(
+              animation: _phase,
+              builder: (_, __) => CustomPaint(
+                painter: _VoiceWavePainter(
+                  level: _listening ? _level : 0,
+                  phase: _phase.value * math.pi * 2,
+                  color: const Color(0xFF4ADE80),
+                ),
+                size: Size.infinite,
+              ),
             ),
           ),
-          child: const GwIcon(GwIcons.sparkle, size: 16, color: Colors.white),
         ),
         const SizedBox(width: 12),
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text(
-                _thinking ? 'Thinking…' : _listening ? 'Listening…' : 'GWC AI',
-                style: TextStyle(
-                    color: widget.dark ? Colors.white : gw.text,
-                    fontSize: 12.5, fontWeight: FontWeight.w800)),
-              const SizedBox(height: 4),
-              // Glow that swells with your voice and lies flat in silence.
-              SizedBox(
-                height: 22,
-                child: AnimatedBuilder(
-                  animation: _phase,
-                  builder: (_, __) => CustomPaint(
-                    painter: _VoiceWavePainter(
-                      level: _listening ? _level : 0,
-                      phase: _phase.value * math.pi * 2,
-                      color: const Color(0xFF4ADE80),
-                    ),
-                    size: Size.infinite,
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ),
-        const SizedBox(width: 10),
         GestureDetector(
           onTap: widget.onClose,
           child: Container(
