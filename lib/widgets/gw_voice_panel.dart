@@ -1,4 +1,6 @@
 import 'dart:async';
+import 'dart:math' as math;
+import 'dart:ui' show ImageFilter;
 import 'package:flutter/material.dart';
 import 'package:flutter_tts/flutter_tts.dart';
 import 'package:speech_to_text/speech_to_text.dart';
@@ -38,18 +40,23 @@ class GwVoicePanel extends StatefulWidget {
   final VoidCallback onClose;
   final ValueChanged<GwVoiceState> onState;
 
+  /// Navigation is on screen, so sit dark against the map instead of glassy.
+  final bool dark;
+
   const GwVoicePanel({
     super.key,
     required this.context,
     required this.onClose,
     required this.onState,
+    this.dark = false,
   });
 
   @override
   State<GwVoicePanel> createState() => _GwVoicePanelState();
 }
 
-class _GwVoicePanelState extends State<GwVoicePanel> {
+class _GwVoicePanelState extends State<GwVoicePanel>
+    with SingleTickerProviderStateMixin {
   static const _opener = 'I am GWC AI, how may I help you?';
 
   final _speech = SpeechToText();
@@ -68,6 +75,12 @@ class _GwVoicePanelState extends State<GwVoicePanel> {
 
   Timer? _idleTimer;
 
+  /// Drives the wave so it drifts while you speak instead of sitting still.
+  late final AnimationController _phase = AnimationController(
+    vsync: this,
+    duration: const Duration(seconds: 3),
+  )..repeat();
+
   @override
   void initState() {
     super.initState();
@@ -76,6 +89,7 @@ class _GwVoicePanelState extends State<GwVoicePanel> {
 
   @override
   void dispose() {
+    _phase.dispose();
     _idleTimer?.cancel();
     _speech.cancel();
     _tts.stop();
@@ -193,11 +207,7 @@ class _GwVoicePanelState extends State<GwVoicePanel> {
   Widget build(BuildContext context) {
     final gw = GwTheme.of(context);
 
-    return GwGlass(
-      radius: 18,
-      blur: 30,
-      padding: const EdgeInsets.fromLTRB(14, 12, 12, 12),
-      child: Row(children: [
+    final content = Row(children: [
         Container(
           width: 34,
           height: 34,
@@ -220,11 +230,25 @@ class _GwVoicePanelState extends State<GwVoicePanel> {
             children: [
               Text(
                 _thinking ? 'Thinking…' : _listening ? 'Listening…' : 'GWC AI',
-                style: TextStyle(color: gw.text, fontSize: 12.5,
-                    fontWeight: FontWeight.w800)),
-              const SizedBox(height: 6),
-              // Level meter — the "music player" strip.
-              SizedBox(height: 16, child: _meter(gw)),
+                style: TextStyle(
+                    color: widget.dark ? Colors.white : gw.text,
+                    fontSize: 12.5, fontWeight: FontWeight.w800)),
+              const SizedBox(height: 4),
+              // Glow that swells with your voice and lies flat in silence.
+              SizedBox(
+                height: 22,
+                child: AnimatedBuilder(
+                  animation: _phase,
+                  builder: (_, __) => CustomPaint(
+                    painter: _VoiceWavePainter(
+                      level: _listening ? _level : 0,
+                      phase: _phase.value * math.pi * 2,
+                      color: const Color(0xFF4ADE80),
+                    ),
+                    size: Size.infinite,
+                  ),
+                ),
+              ),
             ],
           ),
         ),
@@ -237,37 +261,111 @@ class _GwVoicePanelState extends State<GwVoicePanel> {
               shape: BoxShape.circle,
               color: gw.muted.withOpacity(.18),
             ),
-            child: GwIcon(GwIcons.close, size: 14, color: gw.text),
+            child: GwIcon(GwIcons.close, size: 14,
+                color: widget.dark ? Colors.white : gw.text),
           ),
         ),
-      ]),
+      ]);
+
+    if (!widget.dark) {
+      return GwGlass(
+        radius: 18,
+        blur: 30,
+        padding: const EdgeInsets.fromLTRB(14, 12, 12, 12),
+        child: content,
+      );
+    }
+
+    // Navigation: sit dark against the map so the green reads clearly and the
+    // driving instruction above stays the brightest thing on screen.
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(18),
+      child: BackdropFilter(
+        filter: ImageFilter.blur(sigmaX: 14, sigmaY: 14),
+        child: Container(
+          padding: const EdgeInsets.fromLTRB(14, 12, 12, 12),
+          decoration: BoxDecoration(
+            color: Colors.black.withOpacity(.62),
+            borderRadius: BorderRadius.circular(18),
+            border: Border.all(color: Colors.white.withOpacity(.10)),
+          ),
+          child: content,
+        ),
+      ),
     );
   }
 
-  Widget _meter(GwColors gw) => Row(
-        crossAxisAlignment: CrossAxisAlignment.center,
-        children: List.generate(22, (i) {
-          // Middle bars react most, so it reads as a waveform.
-          final centre = 1 - ((i - 10.5).abs() / 10.5);
-          final double h =
-              3 + (_listening ? _level * 13 * (0.35 + centre * 0.65) : 0.0);
-          return Expanded(
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 1.2),
-              child: AnimatedContainer(
-                duration: const Duration(milliseconds: 90),
-                height: h.clamp(3.0, 16.0),
-                decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(99),
-                  gradient: LinearGradient(
-                    begin: Alignment.bottomCenter,
-                    end: Alignment.topCenter,
-                    colors: [gw.greenDim, const Color(0xFF4ADE80)],
-                  ),
-                ),
-              ),
-            ),
-          );
-        }),
+}
+
+/// The soft glow that swells with your voice.
+///
+/// Two overlapping humps rather than a row of bars: it reads as one breathing
+/// light instead of an equaliser, and at rest it settles to a flat line so
+/// silence is unmistakable.
+class _VoiceWavePainter extends CustomPainter {
+  final double level; // 0..1
+  final double phase;
+  final Color color;
+
+  const _VoiceWavePainter({
+    required this.level,
+    required this.phase,
+    required this.color,
+  });
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final baseline = size.height;
+
+    // Resting line, so the strip never disappears entirely.
+    canvas.drawRRect(
+      RRect.fromRectAndRadius(
+        Rect.fromLTWH(0, baseline - 2.5, size.width, 2.5),
+        const Radius.circular(99),
+      ),
+      Paint()..color = color.withOpacity(0.28),
+    );
+
+    if (level <= 0.02) return;
+
+    // Back layer wider and dimmer, front layer tighter and brighter — that
+    // separation is what makes it look like light rather than a shape.
+    for (var layer = 0; layer < 2; layer++) {
+      final amp = level * baseline * (layer == 0 ? 1.0 : 0.62);
+      final speed = layer == 0 ? 1.0 : 1.7;
+      final path = Path()..moveTo(0, baseline);
+
+      for (double x = 0; x <= size.width; x += 3) {
+        final t = x / size.width;
+        // Envelope pins both ends to the baseline so it never clips the edge.
+        final envelope = math.sin(math.pi * t);
+        final ripple = 0.55 +
+            0.45 * math.sin(t * math.pi * 2.6 + phase * speed + layer * 1.3);
+        path.lineTo(x, baseline - amp * envelope * ripple);
+      }
+
+      path
+        ..lineTo(size.width, baseline)
+        ..close();
+
+      canvas.drawPath(
+        path,
+        Paint()
+          ..shader = LinearGradient(
+            begin: Alignment.bottomCenter,
+            end: Alignment.topCenter,
+            colors: [
+              color.withOpacity(layer == 0 ? 0.55 : 0.85),
+              color.withOpacity(0.0),
+            ],
+          ).createShader(Rect.fromLTWH(0, 0, size.width, baseline))
+          ..maskFilter = MaskFilter.blur(
+              BlurStyle.normal, layer == 0 ? 9 : 4),
       );
+    }
+  }
+
+  @override
+  bool shouldRepaint(_VoiceWavePainter old) =>
+      old.level != level || old.phase != phase || old.color != color;
 }

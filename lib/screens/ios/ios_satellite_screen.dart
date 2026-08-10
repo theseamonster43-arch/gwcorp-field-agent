@@ -748,6 +748,7 @@ class _IosSatelliteScreenState extends State<IosSatelliteScreen> {
                       _voice = const GwVoiceState();
                     }),
                     onState: (v) => setState(() => _voice = v),
+                    dark: _navigating,
                   ),
                 )
               else if (_selected != null && !_navigating)
