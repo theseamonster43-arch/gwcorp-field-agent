@@ -80,14 +80,43 @@ class _IosSatelliteScreenState extends State<IosSatelliteScreen> {
         setState(() { _loading = false; _error = 'Location permission is needed to find the nearest site.'; });
         return;
       }
+
+      // A cold GPS fix can take 30s+ indoors, and on desktop there is often no
+      // position source at all. Show results from the cached fix immediately
+      // and let the accurate one refine them when it lands.
+      final cached = await Geolocator.getLastKnownPosition();
+      if (cached != null && mounted) {
+        setState(() => _pos = cached);
+        await _search();
+      }
+
       final pos = await Geolocator.getCurrentPosition(
-        locationSettings: const LocationSettings(accuracy: LocationAccuracy.medium),
+        locationSettings: const LocationSettings(
+          accuracy: LocationAccuracy.medium,
+          timeLimit: Duration(seconds: 12),
+        ),
       );
       if (!mounted) return;
+      final moved = _pos == null ||
+          Geolocator.distanceBetween(
+              _pos!.latitude, _pos!.longitude, pos.latitude, pos.longitude) > 500;
       setState(() => _pos = pos);
-      await _search();
+      if (moved) await _search();
+    } on TimeoutException {
+      if (!mounted) return;
+      // A cached fix is good enough to keep going; only complain without one.
+      if (_pos == null) {
+        setState(() { _loading = false; _error = 'Timed out getting your location. Try again, or move somewhere with a clearer signal.'; });
+      } else {
+        setState(() => _loading = false);
+      }
     } catch (_) {
-      if (mounted) setState(() { _loading = false; _error = 'Could not get your location.'; });
+      if (!mounted) return;
+      if (_pos == null) {
+        setState(() { _loading = false; _error = 'Could not get your location.'; });
+      } else {
+        setState(() => _loading = false);
+      }
     }
   }
 
