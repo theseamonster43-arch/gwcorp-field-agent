@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:io' show Platform;
 import 'dart:math' as math;
 import 'dart:ui' show ImageFilter;
 import 'package:flutter/material.dart';
@@ -68,6 +69,11 @@ class _GwVoicePanelState extends State<GwVoicePanel>
   bool _listening = false;
   bool _thinking = false;
 
+  /// True while the assistant is talking. The idle timer must never fire in
+  /// this state — the agent staying quiet while being spoken to is politeness,
+  /// not silence, and closing on it cuts long answers in half.
+  bool _speaking = false;
+
   String _heard = '';
   String _reply = '';
   String? _error;
@@ -136,11 +142,95 @@ class _GwVoicePanelState extends State<GwVoicePanel>
     // record the greeting.
     setState(() => _reply = _opener);
     _publish();
-    await _tts.setSpeechRate(0.5);
-    await _tts.speak(_opener);
-    await Future<void>.delayed(const Duration(milliseconds: 1600));
+    await _configureTts();
+    await _say(_opener);
     if (mounted) _listen();
   }
+
+  /// Picks the best voice the device actually has and makes [FlutterTts.speak]
+  /// awaitable.
+  ///
+  /// Without `awaitSpeakCompletion(true)` the future completes when speech
+  /// *starts*, so every caller races the assistant's own voice.
+  Future<void> _configureTts() async {
+    try {
+      await _tts.awaitSpeakCompletion(true);
+      await _tts.setLanguage('en-US');
+      await _tts.setVolume(1.0);
+      await _tts.setPitch(1.0);
+      // Android's scale runs fast; iOS's 0.5 is already conversational.
+      await _tts.setSpeechRate(Platform.isAndroid ? 0.52 : 0.46);
+      await _pickBestVoice();
+    } catch (_) {/* stock voice is still fine */}
+  }
+
+  /// Prefers a downloaded neural voice over the tinny built-in one.
+  ///
+  /// Android ships a compact offline voice by default and keeps the far better
+  /// "-network" ones behind the same API, so this is a real quality jump for
+  /// free — it just has to be asked for by name.
+  Future<void> _pickBestVoice() async {
+    try {
+      final raw = await _tts.getVoices;
+      if (raw is! List) return;
+
+      final english = raw
+          .whereType<Map>()
+          .where((v) => '${v['locale']}'.toLowerCase().startsWith('en'))
+          .toList();
+      if (english.isEmpty) return;
+
+      int rank(Map v) {
+        final name = '${v['name']}'.toLowerCase();
+        var score = 0;
+        if (name.contains('network') ||
+            name.contains('neural') ||
+            name.contains('enhanced') ||
+            name.contains('premium')) {
+          score += 8;
+        }
+        if (name.contains('compact') || name.contains('eloquence')) score -= 4;
+        if ('${v['locale']}'.toLowerCase().startsWith('en-us')) score += 2;
+        return score;
+      }
+
+      english.sort((a, b) => rank(b).compareTo(rank(a)));
+      final best = english.first;
+      if (rank(best) <= 0) return; // nothing better than the default
+      await _tts.setVoice({
+        'name': '${best['name']}',
+        'locale': '${best['locale']}',
+      });
+    } catch (_) {/* voice list is optional on some engines */}
+  }
+
+  /// Speaks and genuinely waits for the last word.
+  ///
+  /// The timeout is a backstop: if an engine never reports completion the panel
+  /// would otherwise hang with the mic shut forever.
+  Future<void> _say(String text) async {
+    final line = _spoken(text);
+    if (line.isEmpty) return;
+
+    _idleTimer?.cancel();
+    if (!mounted) return;
+    setState(() => _speaking = true);
+
+    try {
+      await _tts.speak(line).timeout(
+            Duration(milliseconds: 2500 + line.length * 90),
+            onTimeout: () {},
+          );
+    } catch (_) {/* fall through — the agent still gets to talk */}
+
+    if (mounted) setState(() => _speaking = false);
+  }
+
+  /// Markdown is for eyes. Spoken aloud, `**` becomes "asterisk asterisk".
+  String _spoken(String s) => s
+      .replaceAll(RegExp(r'[*_`#>]+'), '')
+      .replaceAll(RegExp(r'\s+'), ' ')
+      .trim();
 
   void _listen() {
     if (!_ready || !mounted) return;
@@ -177,8 +267,11 @@ class _GwVoicePanelState extends State<GwVoicePanel>
   /// there with the mic open.
   void _armIdleTimer() {
     _idleTimer?.cancel();
+    // Only an open, unanswered mic counts as idle.
+    if (_speaking || _thinking) return;
     _idleTimer = Timer(const Duration(seconds: 9), () {
-      if (mounted && _heard.trim().isEmpty && !_thinking) widget.onClose();
+      if (!mounted || _speaking || _thinking) return;
+      if (_heard.trim().isEmpty) widget.onClose();
     });
   }
 
@@ -201,7 +294,7 @@ class _GwVoicePanelState extends State<GwVoicePanel>
     final text = reply ?? (ClaudeService.lastError ?? 'I could not reach the assistant.');
     setState(() { _thinking = false; _reply = text; });
     _publish();
-    await _tts.speak(text);
+    await _say(text);
     if (mounted) _listen(); // stay in the conversation
   }
 
@@ -219,7 +312,14 @@ class _GwVoicePanelState extends State<GwVoicePanel>
               animation: _phase,
               builder: (_, __) => CustomPaint(
                 painter: _VoiceWavePainter(
-                  level: _listening ? _level : 0,
+                  // Flat at rest, your voice while listening, and a steady
+                  // breath while the assistant talks so a long answer never
+                  // looks like a frozen panel.
+                  level: _listening
+                      ? _level
+                      : _speaking
+                          ? 0.34 + 0.22 * math.sin(_phase.value * math.pi * 6)
+                          : 0,
                   phase: _phase.value * math.pi * 2,
                   color: const Color(0xFF4ADE80),
                 ),

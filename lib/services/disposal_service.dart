@@ -196,10 +196,20 @@ enum WasteRoute {
 class DisposalService {
   /// Restricted in Cloud Console to this app's package and signing
   /// fingerprint, so shipping it in the client is the intended design.
-  static const _apiKey = String.fromEnvironment(
+  /// Android/desktop key — restricted to the package + signing fingerprint.
+  static const _androidKey = String.fromEnvironment(
     'GW_MAPS_KEY',
     defaultValue: 'AIzaSyAtbVbVAV3DjNS59R2F1Ms0RVkUI_NckBQ',
   );
+
+  /// iOS key — restricted to the bundle id. A key restricted to an Android
+  /// package 403s every request from iOS, so the platforms cannot share one.
+  static const _iosKey = String.fromEnvironment(
+    'GW_MAPS_KEY_IOS',
+    defaultValue: 'AIzaSyAYu-cA58wp64Xen374JNqqFMTNr__Uw-4',
+  );
+
+  static String get _apiKey => Platform.isIOS ? _iosKey : _androidKey;
 
   static const _endpoint = 'https://places.googleapis.com/v1/places:searchText';
 

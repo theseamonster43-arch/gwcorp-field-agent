@@ -865,15 +865,30 @@ class _IosSatelliteScreenState extends State<IosSatelliteScreen> {
           ),
       },
       polylines: {
-        if (_route != null && _route!.points.isNotEmpty)
+        if (_route != null && _route!.points.isNotEmpty) ...[
+          // Blue, not brand green: every button, pin and label on this screen is
+          // green, so a green route blends into its own UI. Drawn twice — a dark
+          // casing under a bright core — because a flat line disappears against
+          // satellite imagery wherever it crosses water or shadow.
           Polyline(
-            polylineId: const PolylineId('route'),
-            width: 5,
-            color: gw.green,
+            polylineId: const PolylineId('route-casing'),
+            width: 10,
+            color: const Color(0xFF10357A),
+            zIndex: 1,
             points: [
               for (final p in _route!.points) LatLng(p.lat, p.lng),
             ],
           ),
+          Polyline(
+            polylineId: const PolylineId('route'),
+            width: 5,
+            color: const Color(0xFF4C9AFF),
+            zIndex: 2,
+            points: [
+              for (final p in _route!.points) LatLng(p.lat, p.lng),
+            ],
+          ),
+        ],
       },
     );
   }
