@@ -7,31 +7,42 @@ import '../theme/gw_theme.dart';
 import 'gw_glass.dart';
 import 'gw_icons.dart';
 
-/// Hands-free assistant.
+/// What the panel is currently doing, reported up so the screen can show the
+/// conversation large and centred rather than cramped inside the bar.
+class GwVoiceState {
+  final String heard;
+  final String reply;
+  final bool listening;
+  final bool thinking;
+  final String? error;
+
+  const GwVoiceState({
+    this.heard = '',
+    this.reply = '',
+    this.listening = false,
+    this.thinking = false,
+    this.error,
+  });
+}
+
+/// Hands-free assistant, shaped like a music player.
 ///
-/// Opens listening, transcribes as you speak, sends the question to Claude
-/// with whatever context the caller supplies, and reads the answer back. The
-/// bar along the bottom rises with your voice so it is obvious the mic is
-/// live — the usual complaint about voice UI is not knowing whether it heard
-/// you.
-///
-/// Closes itself after a few seconds of silence so a driver never has to
-/// find the X.
+/// Takes the place of the route footer while open: a status line, a level
+/// meter that moves with your voice, and a close button. The conversation
+/// itself is drawn in the middle of the screen by the parent, where it is
+/// readable at a glance.
 class GwVoicePanel extends StatefulWidget {
-  /// Background the assistant should answer from — the site being viewed, the
-  /// waste being carried, and so on.
+  /// Background the assistant answers from — the site, the route, the load.
   final String context;
 
-  /// Spoken opener, e.g. "Hi, you're near Bee'ah Recycling".
-  final String? greeting;
-
   final VoidCallback onClose;
+  final ValueChanged<GwVoiceState> onState;
 
   const GwVoicePanel({
     super.key,
     required this.context,
     required this.onClose,
-    this.greeting,
+    required this.onState,
   });
 
   @override
@@ -39,6 +50,8 @@ class GwVoicePanel extends StatefulWidget {
 }
 
 class _GwVoicePanelState extends State<GwVoicePanel> {
+  static const _opener = 'I am GWC AI, how may I help you?';
+
   final _speech = SpeechToText();
   final _tts = FlutterTts();
 
@@ -50,7 +63,7 @@ class _GwVoicePanelState extends State<GwVoicePanel> {
   String _reply = '';
   String? _error;
 
-  /// 0..1, driven by the mic. Smoothed so the bar glides rather than flickers.
+  /// 0..1 from the mic, eased so the meter glides instead of flickering.
   double _level = 0;
 
   Timer? _idleTimer;
@@ -69,16 +82,26 @@ class _GwVoicePanelState extends State<GwVoicePanel> {
     super.dispose();
   }
 
+  void _publish() => widget.onState(GwVoiceState(
+        heard: _heard,
+        reply: _reply,
+        listening: _listening,
+        thinking: _thinking,
+        error: _error,
+      ));
+
   Future<void> _boot() async {
     try {
       _ready = await _speech.initialize(
-        onError: (e) {
-          if (mounted) setState(() => _error = 'Could not hear you. Try again.');
+        onError: (_) {
+          if (!mounted) return;
+          setState(() => _error = 'Could not hear you. Try again.');
+          _publish();
         },
         onStatus: (s) {
-          // 'done' or 'notListening' means the recogniser stopped on its own.
-          if (s == 'done' || s == 'notListening') {
-            if (mounted && _listening) setState(() => _listening = false);
+          if ((s == 'done' || s == 'notListening') && mounted && _listening) {
+            setState(() => _listening = false);
+            _publish();
           }
         },
       );
@@ -89,25 +112,31 @@ class _GwVoicePanelState extends State<GwVoicePanel> {
 
     if (!_ready) {
       setState(() => _error = 'Speech is not available on this device.');
+      _publish();
       return;
     }
 
+    // Announce, then start listening — talking over the greeting would only
+    // record the greeting.
+    setState(() => _reply = _opener);
+    _publish();
     await _tts.setSpeechRate(0.5);
-    if (widget.greeting != null) await _tts.speak(widget.greeting!);
-
-    setState(() {});
-    _listen();
+    await _tts.speak(_opener);
+    await Future<void>.delayed(const Duration(milliseconds: 1600));
+    if (mounted) _listen();
   }
 
   void _listen() {
-    if (!_ready) return;
-    setState(() { _listening = true; _error = null; _reply = ''; _heard = ''; });
+    if (!_ready || !mounted) return;
+    setState(() { _listening = true; _error = null; _heard = ''; });
+    _publish();
     _armIdleTimer();
 
     _speech.listen(
       onResult: (r) {
         if (!mounted) return;
         setState(() => _heard = r.recognizedWords);
+        _publish();
         _armIdleTimer();
         if (r.finalResult && r.recognizedWords.trim().isNotEmpty) {
           _ask(r.recognizedWords);
@@ -115,8 +144,7 @@ class _GwVoicePanelState extends State<GwVoicePanel> {
       },
       onSoundLevelChange: (l) {
         if (!mounted) return;
-        // The plugin reports roughly -2..10; normalise and ease toward it so
-        // the bar does not jitter frame to frame.
+        // The plugin reports roughly -2..10.
         final target = ((l + 2) / 12).clamp(0.0, 1.0);
         setState(() => _level = _level + (target - _level) * 0.35);
       },
@@ -129,12 +157,12 @@ class _GwVoicePanelState extends State<GwVoicePanel> {
     );
   }
 
-  /// Nothing said for a while — shut down rather than sit there listening.
+  /// Silence for long enough means the agent is done — close rather than sit
+  /// there with the mic open.
   void _armIdleTimer() {
     _idleTimer?.cancel();
-    _idleTimer = Timer(const Duration(seconds: 8), () {
-      if (!mounted) return;
-      if (_heard.trim().isEmpty && !_thinking) widget.onClose();
+    _idleTimer = Timer(const Duration(seconds: 9), () {
+      if (mounted && _heard.trim().isEmpty && !_thinking) widget.onClose();
     });
   }
 
@@ -142,7 +170,8 @@ class _GwVoicePanelState extends State<GwVoicePanel> {
     _idleTimer?.cancel();
     await _speech.stop();
     if (!mounted) return;
-    setState(() { _listening = false; _thinking = true; _level = 0; });
+    setState(() { _listening = false; _thinking = true; _level = 0; _reply = ''; });
+    _publish();
 
     final reply = await ClaudeService.chat(
       systemContext:
@@ -155,7 +184,9 @@ class _GwVoicePanelState extends State<GwVoicePanel> {
     if (!mounted) return;
     final text = reply ?? (ClaudeService.lastError ?? 'I could not reach the assistant.');
     setState(() { _thinking = false; _reply = text; });
+    _publish();
     await _tts.speak(text);
+    if (mounted) _listen(); // stay in the conversation
   }
 
   @override
@@ -163,101 +194,80 @@ class _GwVoicePanelState extends State<GwVoicePanel> {
     final gw = GwTheme.of(context);
 
     return GwGlass(
-      radius: 22,
+      radius: 18,
       blur: 30,
-      padding: const EdgeInsets.fromLTRB(16, 14, 16, 16),
-      child: Column(mainAxisSize: MainAxisSize.min, children: [
-        Row(children: [
-          Container(
-            width: 30,
-            height: 30,
-            alignment: Alignment.center,
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              gradient: LinearGradient(
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-                colors: [const Color(0xFF4ADE80), gw.green, gw.greenDim],
-              ),
+      padding: const EdgeInsets.fromLTRB(14, 12, 12, 12),
+      child: Row(children: [
+        Container(
+          width: 34,
+          height: 34,
+          alignment: Alignment.center,
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(11),
+            gradient: LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: [const Color(0xFF4ADE80), gw.green, gw.greenDim],
             ),
-            child: const GwIcon(GwIcons.sparkle, size: 15, color: Colors.white),
           ),
-          const SizedBox(width: 10),
-          Expanded(
-            child: Text(
-              _thinking
-                  ? 'Thinking…'
-                  : _listening
-                      ? 'Listening…'
-                      : 'GWC',
-              style: TextStyle(color: gw.text, fontSize: 14,
-                  fontWeight: FontWeight.w800)),
-          ),
-          GestureDetector(
-            onTap: widget.onClose,
-            child: GwIcon(GwIcons.close, size: 16, color: gw.muted),
-          ),
-        ]),
-
-        const SizedBox(height: 12),
-
-        if (_error != null)
-          Text(_error!, style: TextStyle(color: gw.amber, fontSize: 12.5, height: 1.4))
-        else if (_reply.isNotEmpty)
-          Text(_reply, style: TextStyle(color: gw.text, fontSize: 13.5, height: 1.5))
-        else
-          Text(
-            _heard.isEmpty ? 'Ask me about this place, or what to do with a load.' : _heard,
-            style: TextStyle(
-                color: _heard.isEmpty ? gw.muted : gw.text,
-                fontSize: 13.5, height: 1.45)),
-
-        const SizedBox(height: 14),
-
-        // Level meter — grows with your voice, so it is obvious the mic is on.
-        SizedBox(
-          height: 26,
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.end,
-            children: List.generate(24, (i) {
-              // Middle bars react most, giving a waveform rather than a block.
-              final centre = 1 - ((i - 11.5).abs() / 11.5);
-              // 0.0 not 0, or the ternary types as num and clamp returns num.
-              final double h =
-                  3 + (_listening ? _level * 23 * (0.35 + centre * 0.65) : 0.0);
-              return Expanded(
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 1.5),
-                  child: AnimatedContainer(
-                    duration: const Duration(milliseconds: 90),
-                    height: h.clamp(3.0, 26.0),
-                    decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(99),
-                      gradient: LinearGradient(
-                        begin: Alignment.bottomCenter,
-                        end: Alignment.topCenter,
-                        colors: [gw.greenDim, const Color(0xFF4ADE80)],
-                      ),
-                    ),
-                  ),
-                ),
-              );
-            }),
+          child: const GwIcon(GwIcons.sparkle, size: 16, color: Colors.white),
+        ),
+        const SizedBox(width: 12),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                _thinking ? 'Thinking…' : _listening ? 'Listening…' : 'GWC AI',
+                style: TextStyle(color: gw.text, fontSize: 12.5,
+                    fontWeight: FontWeight.w800)),
+              const SizedBox(height: 6),
+              // Level meter — the "music player" strip.
+              SizedBox(height: 16, child: _meter(gw)),
+            ],
           ),
         ),
-
-        if (!_listening && !_thinking) ...[
-          const SizedBox(height: 12),
-          GwGlass(
-            radius: 12,
-            accent: gw.green,
-            onTap: _listen,
-            padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 10),
-            child: Text('Ask again', style: TextStyle(
-                color: gw.green, fontSize: 12.5, fontWeight: FontWeight.w700)),
+        const SizedBox(width: 10),
+        GestureDetector(
+          onTap: widget.onClose,
+          child: Container(
+            padding: const EdgeInsets.all(9),
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              color: gw.muted.withOpacity(.18),
+            ),
+            child: GwIcon(GwIcons.close, size: 14, color: gw.text),
           ),
-        ],
+        ),
       ]),
     );
   }
+
+  Widget _meter(GwColors gw) => Row(
+        crossAxisAlignment: CrossAxisAlignment.center,
+        children: List.generate(22, (i) {
+          // Middle bars react most, so it reads as a waveform.
+          final centre = 1 - ((i - 10.5).abs() / 10.5);
+          final double h =
+              3 + (_listening ? _level * 13 * (0.35 + centre * 0.65) : 0.0);
+          return Expanded(
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 1.2),
+              child: AnimatedContainer(
+                duration: const Duration(milliseconds: 90),
+                height: h.clamp(3.0, 16.0),
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(99),
+                  gradient: LinearGradient(
+                    begin: Alignment.bottomCenter,
+                    end: Alignment.topCenter,
+                    colors: [gw.greenDim, const Color(0xFF4ADE80)],
+                  ),
+                ),
+              ),
+            ),
+          );
+        }),
+      );
 }

@@ -80,6 +80,7 @@ class _IosSatelliteScreenState extends State<IosSatelliteScreen> {
   }
 
   bool _voiceOpen = false;
+  GwVoiceState _voice = const GwVoiceState();
 
   /// Set on arrival so the destination pin can be shown differently.
   bool _arrived = false;
@@ -279,6 +280,60 @@ class _IosSatelliteScreenState extends State<IosSatelliteScreen> {
   }
 
 
+
+  /// The conversation, drawn large in the middle of the map. Kept out of the
+  /// bottom bar so it stays readable at a glance while driving.
+  Widget _voiceTranscript(GwColors gw) {
+    final v = _voice;
+    final said = v.heard.trim();
+    final reply = v.error ?? v.reply;
+
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 32),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            if (said.isNotEmpty)
+              AnimatedSwitcher(
+                duration: const Duration(milliseconds: 200),
+                child: Text(
+                  said,
+                  key: ValueKey(said),
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    color: gw.text.withOpacity(.65),
+                    fontSize: 16,
+                    height: 1.4,
+                    fontWeight: FontWeight.w600,
+                    shadows: const [Shadow(color: Colors.black54, blurRadius: 12)],
+                  ),
+                ),
+              ),
+            if (said.isNotEmpty && reply.isNotEmpty) const SizedBox(height: 18),
+            if (reply.isNotEmpty)
+              AnimatedSwitcher(
+                duration: const Duration(milliseconds: 260),
+                child: Text(
+                  reply,
+                  key: ValueKey(reply),
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    color: v.error != null ? gw.amber : Colors.white,
+                    fontSize: 22,
+                    height: 1.4,
+                    fontWeight: FontWeight.w800,
+                    letterSpacing: -0.4,
+                    shadows: const [Shadow(color: Colors.black87, blurRadius: 16)],
+                  ),
+                ),
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+
   /// Everything the assistant should know before answering.
   String _voiceContext() {
     final s = _selected;
@@ -312,10 +367,6 @@ class _IosSatelliteScreenState extends State<IosSatelliteScreen> {
     return parts.isEmpty ? 'No site selected yet.' : parts.join(' ');
   }
 
-  String _voiceGreeting() {
-    final s = _selected;
-    return s == null ? 'Hi, GWC here.' : 'Hi, you are heading to ${s.name}.';
-  }
 
   SiteVote? _myVote(DisposalSite s) => DisposalRegistry.myVote(s.id);
 
@@ -659,7 +710,10 @@ class _IosSatelliteScreenState extends State<IosSatelliteScreen> {
         ),
 
         // Route / selection card
-        if (_navigating)
+        if (_voiceOpen)
+          Positioned.fill(child: IgnorePointer(child: _voiceTranscript(gw))),
+
+        if (_navigating && !_voiceOpen)
           Positioned(
             top: MediaQuery.of(context).padding.top + 8,
             left: 12, right: 12,
@@ -675,31 +729,34 @@ class _IosSatelliteScreenState extends State<IosSatelliteScreen> {
             crossAxisAlignment: CrossAxisAlignment.end,
             mainAxisSize: MainAxisSize.min,
             children: [
-              if (_voiceOpen) ...[
-                _SlideFadeIn(
-                  from: const Offset(0, 0.3),
-                  child: GwVoicePanel(
-                    context: _voiceContext(),
-                    greeting: _voiceGreeting(),
-                    onClose: () => setState(() => _voiceOpen = false),
-                  ),
-                ),
-                const SizedBox(height: 12),
-              ],
-              if (_mapSupported && _pos != null && _offCentre) ...[
+              if (_mapSupported && _pos != null && _offCentre && !_voiceOpen) ...[
                 _SlideFadeIn(
                   from: const Offset(0.4, 0),
                   child: _RecenterButton(onTap: _recenter),
                 ),
                 const SizedBox(height: 12),
               ],
-              if (_selected != null && !_navigating)
+              // Voice takes the footer slot outright — two stacked panels
+              // would leave nothing but map.
+              if (_voiceOpen)
+                _SlideFadeIn(
+                  from: const Offset(0, 0.3),
+                  child: GwVoicePanel(
+                    context: _voiceContext(),
+                    onClose: () => setState(() {
+                      _voiceOpen = false;
+                      _voice = const GwVoiceState();
+                    }),
+                    onState: (v) => setState(() => _voice = v),
+                  ),
+                )
+              else if (_selected != null && !_navigating)
                 _SlideFadeIn(
                   key: ValueKey(_selected!.id),
                   from: const Offset(0, 0.35),
                   child: _routeCard(gw),
-                ),
-              if (_navigating)
+                )
+              else if (_navigating)
                 _SlideFadeIn(
                   from: const Offset(0, 0.35),
                   child: _guidanceFooter(gw),
@@ -1173,7 +1230,7 @@ class _IosSatelliteScreenState extends State<IosSatelliteScreen> {
           child: Container(
             padding: const EdgeInsets.all(11),
             decoration: BoxDecoration(
-              shape: BoxShape.circle,
+              borderRadius: BorderRadius.circular(12),
               gradient: LinearGradient(
                 begin: Alignment.topLeft,
                 end: Alignment.bottomRight,
