@@ -282,6 +282,27 @@ class _IosSatelliteScreenState extends State<IosSatelliteScreen> {
 
 
 
+
+  /// Whatever owns the bottom slot right now. Keyed so AnimatedSwitcher can
+  /// tell one panel from another and animate the handover.
+  Widget _footerSlot(GwColors gw) {
+    if (_voiceOpen) {
+      return GwVoicePanel(
+        key: const ValueKey('voice'),
+        context: _voiceContext(),
+        onClose: () => setState(() => _voiceOpen = false),
+        dark: _navigating,
+      );
+    }
+    if (_selected != null && !_navigating) {
+      return KeyedSubtree(key: ValueKey('card:' + _selected!.id), child: _routeCard(gw));
+    }
+    if (_navigating) {
+      return KeyedSubtree(key: const ValueKey('nav'), child: _guidanceFooter(gw));
+    }
+    return const SizedBox(key: ValueKey('none'), width: double.infinity);
+  }
+
   /// Everything the assistant should know before answering.
   String _voiceContext() {
     final s = _selected;
@@ -700,27 +721,34 @@ class _IosSatelliteScreenState extends State<IosSatelliteScreen> {
                 const SizedBox(height: 12),
               ],
               // Voice takes the footer slot outright — two stacked panels
-              // would leave nothing but map.
-              if (_voiceOpen)
-                _SlideFadeIn(
-                  from: const Offset(0, 0.3),
-                  child: GwVoicePanel(
-                    context: _voiceContext(),
-                    onClose: () => setState(() => _voiceOpen = false),
-                    dark: _navigating,
+              // would leave nothing but map. AnimatedSwitcher rather than a
+              // plain if/else so the outgoing panel drops away instead of
+              // vanishing the instant the next one starts arriving.
+              AnimatedSwitcher(
+                duration: const Duration(milliseconds: 320),
+                switchInCurve: Curves.easeOutCubic,
+                switchOutCurve: Curves.easeInCubic,
+                transitionBuilder: (child, anim) => FadeTransition(
+                  opacity: anim,
+                  child: SlideTransition(
+                    position: Tween<Offset>(
+                      begin: const Offset(0, 0.35),
+                      end: Offset.zero,
+                    ).animate(anim),
+                    child: child,
                   ),
-                )
-              else if (_selected != null && !_navigating)
-                _SlideFadeIn(
-                  key: ValueKey(_selected!.id),
-                  from: const Offset(0, 0.35),
-                  child: _routeCard(gw),
-                )
-              else if (_navigating)
-                _SlideFadeIn(
-                  from: const Offset(0, 0.35),
-                  child: _guidanceFooter(gw),
                 ),
+                // Anchored to the bottom so panels of different heights slide
+                // past each other instead of jumping as the box resizes.
+                layoutBuilder: (current, previous) => Stack(
+                  alignment: Alignment.bottomCenter,
+                  children: [
+                    ...previous,
+                    if (current != null) current,
+                  ],
+                ),
+                child: _footerSlot(gw),
+              ),
             ],
           ),
         ),
@@ -1311,7 +1339,7 @@ class _IosSatelliteScreenState extends State<IosSatelliteScreen> {
 class _SlideFadeIn extends StatefulWidget {
   final Widget child;
   final Offset from;
-  const _SlideFadeIn({super.key, required this.child, required this.from});
+  const _SlideFadeIn({required this.child, required this.from});
 
   @override
   State<_SlideFadeIn> createState() => _SlideFadeInState();
