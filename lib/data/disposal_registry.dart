@@ -2,32 +2,48 @@ import 'dart:async';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/foundation.dart';
 
-/// What the team knows about a place, as opposed to what Google guesses.
-enum SiteStatus {
-  /// An agent has delivered here and it accepted the load.
-  verified,
+/// One agent's verdict on a place.
+enum SiteVote {
+  /// Went there and it accepted the load.
+  takesWaste,
 
-  /// An agent went and it was not a disposal site, or refused the waste.
+  /// Went there and it was not a disposal site, or refused the waste.
+  notASite,
+}
+
+/// How much the team's verdict on a place can be trusted.
+///
+/// Confidence is not just "what did the majority say" — two agents agreeing is
+/// far weaker evidence than two hundred, so the ratio is pulled toward
+/// uncertain when the sample is small.
+enum SiteConfidence {
+  /// Nobody has been yet.
+  unknown,
+
+  /// A handful of reports leaning one way. Worth showing, worth doubting.
+  reported,
+
+  /// Enough agreement to rely on.
+  confirmed,
+
+  /// The team says this is not a disposal site.
   rejected,
 }
 
-/// A site an agent has actually been to.
-///
-/// Keyed by Google's place id so a record lines up with whatever Places
-/// returns later, regardless of how the search was phrased.
+/// The team's collective knowledge about one place.
 class DisposalRecord {
   final String placeId;
   final String name;
   final String address;
   final double lat;
   final double lng;
-  final SiteStatus status;
 
-  /// Waste categories this site takes, e.g. Hazardous, E-Waste.
+  final int takesWasteVotes;
+  final int notASiteVotes;
+
+  /// Waste categories agents reported this site accepting.
   final List<String> acceptedWaste;
 
-  final String notes;
-  final String updatedBy;
   final int updatedAt;
 
   const DisposalRecord({
@@ -36,14 +52,48 @@ class DisposalRecord {
     required this.address,
     required this.lat,
     required this.lng,
-    required this.status,
+    this.takesWasteVotes = 0,
+    this.notASiteVotes = 0,
     this.acceptedWaste = const [],
-    this.notes = '',
-    this.updatedBy = '',
     this.updatedAt = 0,
   });
 
-  bool get isVerified => status == SiteStatus.verified;
+  int get totalVotes => takesWasteVotes + notASiteVotes;
+
+  /// Agreement, smoothed so a lone vote cannot look like certainty.
+  ///
+  /// The `+3` pulls small samples toward 0.5: one "yes" lands around 0.63,
+  /// five around 0.81, fifty near 0.99. That is the "low people, low chance"
+  /// behaviour — the same ratio counts for more as more agents weigh in.
+  double get confidence {
+    if (totalVotes == 0) return 0.5;
+    final ratio = takesWasteVotes / totalVotes;
+    final weight = totalVotes / (totalVotes + 3);
+    return 0.5 + (ratio - 0.5) * weight;
+  }
+
+  SiteConfidence get level {
+    if (totalVotes == 0) return SiteConfidence.unknown;
+    if (confidence < 0.4) return SiteConfidence.rejected;
+    if (confidence >= 0.7 && takesWasteVotes >= 3) return SiteConfidence.confirmed;
+    return SiteConfidence.reported;
+  }
+
+  /// Short line for the UI, e.g. "Verified · 12 agents".
+  String get summary {
+    switch (level) {
+      case SiteConfidence.unknown:
+        return 'No reports yet';
+      case SiteConfidence.confirmed:
+        return 'Verified · $takesWasteVotes agent${takesWasteVotes == 1 ? '' : 's'}';
+      case SiteConfidence.reported:
+        return notASiteVotes == 0
+            ? 'Reported by $takesWasteVotes agent${takesWasteVotes == 1 ? '' : 's'}'
+            : '$takesWasteVotes of $totalVotes agents say yes';
+      case SiteConfidence.rejected:
+        return '$notASiteVotes of $totalVotes agents say no';
+    }
+  }
 
   factory DisposalRecord.fromMap(Map<String, dynamic> m, String id) =>
       DisposalRecord(
@@ -52,46 +102,35 @@ class DisposalRecord {
         address: (m['address'] as String?) ?? '',
         lat: (m['lat'] as num?)?.toDouble() ?? 0,
         lng: (m['lng'] as num?)?.toDouble() ?? 0,
-        status: (m['status'] as String?) == 'rejected'
-            ? SiteStatus.rejected
-            : SiteStatus.verified,
+        takesWasteVotes: (m['takesWasteVotes'] as num?)?.toInt() ?? 0,
+        notASiteVotes: (m['notASiteVotes'] as num?)?.toInt() ?? 0,
         acceptedWaste:
             (m['acceptedWaste'] as List?)?.whereType<String>().toList() ?? const [],
-        notes: (m['notes'] as String?) ?? '',
-        updatedBy: (m['updatedBy'] as String?) ?? '',
         updatedAt: (m['updatedAt'] as num?)?.toInt() ?? 0,
       );
-
-  Map<String, dynamic> toMap() => {
-        'name': name,
-        'address': address,
-        'lat': lat,
-        'lng': lng,
-        'status': status == SiteStatus.rejected ? 'rejected' : 'verified',
-        'acceptedWaste': acceptedWaste,
-        'notes': notes,
-        'updatedBy': updatedBy,
-        'updatedAt': updatedAt,
-      };
 }
 
-/// The team's shared list of places that do and do not take waste.
+/// Shared registry of which places actually take waste.
 ///
-/// Small and slow-changing, so it is mirrored in memory and read
-/// synchronously while filtering search results — a per-result Firestore
-/// lookup during a search would be far too slow.
+/// Each agent's vote is its own document, so one person cannot flip a site on
+/// their own and voting twice replaces their earlier call rather than stacking
+/// another one. Running totals live on the parent so filtering a search does
+/// not need to read every vote.
 class DisposalRegistry {
   static final _db = FirebaseFirestore.instance;
   static CollectionReference get _col => _db.collection('disposalSites');
 
   static final Map<String, DisposalRecord> _cache = {};
+  static final Map<String, SiteVote> _myVotes = {};
   static StreamSubscription<QuerySnapshot>? _sub;
+  static String _email = '';
 
-  /// Fires whenever the registry changes so open screens can re-filter.
+  /// Bumped whenever anything changes, so open screens can re-filter.
   static final ValueNotifier<int> revision = ValueNotifier<int>(0);
 
-  /// Starts mirroring the collection. Safe to call repeatedly.
-  static void start() {
+  /// Starts mirroring the registry. Safe to call repeatedly.
+  static void start(String myEmail) {
+    _email = myEmail;
     if (_sub != null) return;
     _sub = _col.snapshots().listen((snap) {
       _cache
@@ -114,45 +153,78 @@ class DisposalRegistry {
 
   static DisposalRecord? of(String placeId) => _cache[placeId];
 
-  static bool isVerified(String placeId) => _cache[placeId]?.isVerified ?? false;
+  static SiteConfidence levelOf(String placeId) =>
+      _cache[placeId]?.level ?? SiteConfidence.unknown;
 
-  static bool isRejected(String placeId) =>
-      _cache[placeId]?.status == SiteStatus.rejected;
+  /// This agent's own vote, once known. Populated lazily by [loadMyVote].
+  static SiteVote? myVote(String placeId) => _myVotes[placeId];
 
-  /// Records a verdict. Writing under the place id keeps one row per site, so
-  /// a later visit corrects the earlier call rather than adding a duplicate.
-  static Future<void> record({
+  static Future<void> loadMyVote(String placeId) async {
+    if (_email.isEmpty || _myVotes.containsKey(placeId)) return;
+    try {
+      final doc = await _col.doc(placeId).collection('votes').doc(_email).get();
+      final v = (doc.data() as Map<String, dynamic>?)?['vote'] as String?;
+      if (v != null) {
+        _myVotes[placeId] = v == 'notASite' ? SiteVote.notASite : SiteVote.takesWaste;
+        revision.value++;
+      }
+    } catch (_) {/* offline is fine — it just stays unknown */}
+  }
+
+  /// Casts or changes this agent's vote and keeps the totals in step.
+  ///
+  /// Done in a transaction because two agents voting at once would otherwise
+  /// both read the same total and one increment would be lost.
+  static Future<void> vote({
     required String placeId,
     required String name,
     required String address,
     required double lat,
     required double lng,
-    required SiteStatus status,
-    List<String> acceptedWaste = const [],
-    String notes = '',
-    required String updatedBy,
+    required SiteVote vote,
   }) async {
-    final rec = DisposalRecord(
-      placeId: placeId,
-      name: name,
-      address: address,
-      lat: lat,
-      lng: lng,
-      status: status,
-      acceptedWaste: acceptedWaste,
-      notes: notes,
-      updatedBy: updatedBy,
-      updatedAt: DateTime.now().millisecondsSinceEpoch,
-    );
-    await _col.doc(placeId).set(rec.toMap());
-    // Apply locally straight away rather than waiting for the round trip.
-    _cache[placeId] = rec;
-    revision.value++;
-  }
+    if (_email.isEmpty) return;
+    final siteRef = _col.doc(placeId);
+    final voteRef = siteRef.collection('votes').doc(_email);
 
-  static Future<void> clear(String placeId) async {
-    await _col.doc(placeId).delete();
-    _cache.remove(placeId);
+    await _db.runTransaction((tx) async {
+      // Every read must happen before any write.
+      final voteSnap = await tx.get(voteRef);
+      final siteSnap = await tx.get(siteRef);
+
+      final previous = voteSnap.exists
+          ? ((voteSnap.data() as Map<String, dynamic>)['vote'] as String?)
+          : null;
+      if (previous == vote.name) return; // unchanged
+
+      final data = siteSnap.exists
+          ? (siteSnap.data() as Map<String, dynamic>)
+          : <String, dynamic>{};
+      var yes = (data['takesWasteVotes'] as num?)?.toInt() ?? 0;
+      var no = (data['notASiteVotes'] as num?)?.toInt() ?? 0;
+
+      // Retract the old vote before counting the new one.
+      if (previous == SiteVote.takesWaste.name) yes = yes > 0 ? yes - 1 : 0;
+      if (previous == SiteVote.notASite.name) no = no > 0 ? no - 1 : 0;
+      if (vote == SiteVote.takesWaste) yes++; else no++;
+
+      tx.set(siteRef, {
+        'name': name,
+        'address': address,
+        'lat': lat,
+        'lng': lng,
+        'takesWasteVotes': yes,
+        'notASiteVotes': no,
+        'updatedAt': DateTime.now().millisecondsSinceEpoch,
+      }, SetOptions(merge: true));
+
+      tx.set(voteRef, {
+        'vote': vote.name,
+        'at': DateTime.now().millisecondsSinceEpoch,
+      });
+    });
+
+    _myVotes[placeId] = vote;
     revision.value++;
   }
 }

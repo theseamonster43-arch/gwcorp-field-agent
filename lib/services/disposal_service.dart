@@ -73,14 +73,22 @@ class DisposalSite {
   /// has been yet, in which case the heuristics below are all we have.
   DisposalRecord? get record => DisposalRegistry.of(id);
 
-  bool get isVerified => DisposalRegistry.isVerified(id);
-  bool get isRejected => DisposalRegistry.isRejected(id);
+  SiteConfidence get confidence => DisposalRegistry.levelOf(id);
+
+  /// Enough agents agree that this is treated as fact.
+  bool get isVerified => confidence == SiteConfidence.confirmed;
+
+  /// Some agents have vouched for it, but not enough to be sure.
+  bool get isReported => confidence == SiteConfidence.reported;
+
+  /// The team says no.
+  bool get isRejected => confidence == SiteConfidence.rejected;
 
   /// True when this is plainly a shop, restaurant or similar and nothing
   /// about it suggests it takes waste. Those get dropped from results.
   bool get isIrrelevant {
-    // Someone has been there, so stop guessing.
-    if (isVerified) return false;
+    // Agents have been here, so stop guessing.
+    if (isVerified || isReported) return false;
     if (isRejected) return true;
     if (acceptsWaste) return false;
     return types.any(_notDisposalTypes.contains);
@@ -318,9 +326,12 @@ class DisposalService {
         ..addAll(kept);
 
       // Somewhere the team has actually used outranks a closer unknown.
+      // Somewhere the team has confirmed outranks a closer unknown, and a
+      // few reports outrank none.
+      int rank(DisposalSite x) => x.isVerified ? 0 : (x.isReported ? 1 : 2);
       sites.sort((a, b) {
-        if (a.isVerified != b.isVerified) return a.isVerified ? -1 : 1;
-        return a.distanceMeters.compareTo(b.distanceMeters);
+        final r = rank(a).compareTo(rank(b));
+        return r != 0 ? r : a.distanceMeters.compareTo(b.distanceMeters);
       });
       if (sites.isNotEmpty) lastError = null;
       _cache[key] = sites;

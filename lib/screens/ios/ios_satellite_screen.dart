@@ -85,7 +85,7 @@ class _IosSatelliteScreenState extends State<IosSatelliteScreen> {
   @override
   void initState() {
     super.initState();
-    DisposalRegistry.start();
+    DisposalRegistry.start(FirebaseAuth.instance.currentUser?.email ?? '');
     DisposalRegistry.revision.addListener(_onRegistryChanged);
     _locate();
   }
@@ -220,6 +220,7 @@ class _IosSatelliteScreenState extends State<IosSatelliteScreen> {
 
   /// Draws the route and frames both ends on the map.
   Future<void> _select(DisposalSite s) async {
+    DisposalRegistry.loadMyVote(s.id);
     final pos = _pos;
     _searchFocus.unfocus();
     setState(() {
@@ -251,24 +252,21 @@ class _IosSatelliteScreenState extends State<IosSatelliteScreen> {
   }
 
 
-  Future<void> _record(DisposalSite s, SiteStatus status) async {
-    final email = FirebaseAuth.instance.currentUser?.email ?? '';
-    await DisposalRegistry.record(
+  SiteVote? _myVote(DisposalSite s) => DisposalRegistry.myVote(s.id);
+
+  Future<void> _record(DisposalSite s, SiteVote vote) async {
+    await DisposalRegistry.vote(
       placeId: s.id,
       name: s.name,
       address: s.address,
       lat: s.lat,
       lng: s.lng,
-      status: status,
-      updatedBy: email,
+      vote: vote,
     );
     if (!mounted) return;
-    if (status == SiteStatus.rejected) {
-      // It is gone from the results now, so the open card is stale.
-      _clearRoute();
-    } else {
-      setState(() {});
-    }
+    // A single "no" no longer removes a site outright — it counts against
+    // it, and the card stays so the running tally is visible.
+    setState(() {});
   }
 
   /// Snaps the camera back to the agent. During guidance it also re-locks
@@ -768,12 +766,14 @@ class _IosSatelliteScreenState extends State<IosSatelliteScreen> {
                           Text(s.name, maxLines: 1, overflow: TextOverflow.ellipsis,
                               style: TextStyle(color: gw.text,
                                   fontSize: 13.5, fontWeight: FontWeight.w700)),
-                          if (s.isVerified)
+                          if (s.isVerified || s.isReported)
                             Row(children: [
-                              GwIcon(GwIcons.checkCircle, size: 11, color: gw.green),
+                              GwIcon(GwIcons.checkCircle, size: 11,
+                                  color: s.isVerified ? gw.green : gw.amber),
                               const SizedBox(width: 4),
-                              Text('Verified by the team',
-                                  style: TextStyle(color: gw.green,
+                              Text(s.record?.summary ?? '',
+                                  style: TextStyle(
+                                      color: s.isVerified ? gw.green : gw.amber,
                                       fontSize: 10.5, fontWeight: FontWeight.w700)),
                             ])
                           else if (!s.acceptsWaste)
@@ -916,45 +916,47 @@ class _IosSatelliteScreenState extends State<IosSatelliteScreen> {
         const SizedBox(height: 12),
         // What the team knows, recorded after actually going. This is what
         // replaces guessing from names and place types over time.
+        // The team's running tally. One agent's opinion is a data point, not a
+        // verdict — confidence only builds as more of them agree.
+        if (s.record != null) ...[
+          Text(s.record!.summary, style: TextStyle(
+              color: s.isVerified
+                  ? gw.green
+                  : s.isRejected
+                      ? gw.red
+                      : gw.amber,
+              fontSize: 11.5, fontWeight: FontWeight.w700)),
+          const SizedBox(height: 8),
+        ],
         Row(children: [
-          if (s.isVerified)
-            Expanded(
+          Expanded(
+            child: GestureDetector(
+              behavior: HitTestBehavior.opaque,
+              onTap: () => _record(s, SiteVote.takesWaste),
               child: Row(children: [
-                GwIcon(GwIcons.checkCircle, size: 14, color: gw.green),
+                GwIcon(GwIcons.checkCircle, size: 14,
+                    color: _myVote(s) == SiteVote.takesWaste ? gw.green : gw.muted),
                 const SizedBox(width: 7),
-                Expanded(
-                  child: Text(
-                    s.record?.updatedBy.isNotEmpty == true
-                        ? 'Verified by ${s.record!.updatedBy.split('@').first}'
-                        : 'Verified',
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(color: gw.green, fontSize: 11.5,
-                        fontWeight: FontWeight.w700)),
-                ),
+                Text('Takes waste', style: TextStyle(
+                    color: _myVote(s) == SiteVote.takesWaste ? gw.green : gw.muted,
+                    fontSize: 11.5,
+                    fontWeight: _myVote(s) == SiteVote.takesWaste
+                        ? FontWeight.w700 : FontWeight.w600)),
               ]),
-            )
-          else
-            Expanded(
-              child: GestureDetector(
-                behavior: HitTestBehavior.opaque,
-                onTap: () => _record(s, SiteStatus.verified),
-                child: Row(children: [
-                  GwIcon(GwIcons.checkCircle, size: 14, color: gw.muted),
-                  const SizedBox(width: 7),
-                  Text('Takes waste', style: TextStyle(color: gw.muted,
-                      fontSize: 11.5, fontWeight: FontWeight.w600)),
-                ]),
-              ),
             ),
+          ),
           GestureDetector(
             behavior: HitTestBehavior.opaque,
-            onTap: () => _record(s, SiteStatus.rejected),
+            onTap: () => _record(s, SiteVote.notASite),
             child: Row(children: [
-              GwIcon(GwIcons.close, size: 13, color: gw.muted),
+              GwIcon(GwIcons.close, size: 13,
+                  color: _myVote(s) == SiteVote.notASite ? gw.red : gw.muted),
               const SizedBox(width: 6),
-              Text('Not a site', style: TextStyle(color: gw.muted,
-                  fontSize: 11.5, fontWeight: FontWeight.w600)),
+              Text('Not a site', style: TextStyle(
+                  color: _myVote(s) == SiteVote.notASite ? gw.red : gw.muted,
+                  fontSize: 11.5,
+                  fontWeight: _myVote(s) == SiteVote.notASite
+                      ? FontWeight.w700 : FontWeight.w600)),
             ]),
           ),
         ]),
