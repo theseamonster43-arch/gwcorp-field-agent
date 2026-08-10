@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:io' show Platform;
 import 'dart:math' as math;
 import 'package:http/http.dart' as http;
 
@@ -85,6 +86,29 @@ class DisposalService {
 
   static const _endpoint = 'https://places.googleapis.com/v1/places:searchText';
 
+  /// Package name and signing fingerprint the Android key is restricted to.
+  /// The Maps SDK sends these automatically; a plain REST call has to add them
+  /// by hand or Google sees an anonymous request and returns 403.
+  static const _androidPackage = 'com.gwcorp.fieldagent';
+  static const _androidCert    = 'A6A9FF1FE6770B4134E885C8825F5A221BB4F9A4';
+  static const _iosBundleId    = 'com.gwcorp.fieldagent';
+
+  /// Identity headers matching whichever key restriction applies here.
+  static Map<String, String> get _appHeaders {
+    if (Platform.isAndroid) {
+      return {
+        'X-Android-Package': _androidPackage,
+        'X-Android-Cert':    _androidCert,
+      };
+    }
+    if (Platform.isIOS) {
+      return {'X-Ios-Bundle-Identifier': _iosBundleId};
+    }
+    // Desktop has no app identity to present, so it needs a key restricted by
+    // referrer or left unrestricted with a tight API + quota limit.
+    return const {};
+  }
+
   /// Why the last search failed, for the UI to show. Null after a success.
   static String? lastError;
 
@@ -115,6 +139,7 @@ class DisposalService {
       final res = await http.post(
         Uri.parse(_endpoint),
         headers: {
+          ..._appHeaders,
           'Content-Type': 'application/json',
           'X-Goog-Api-Key': _apiKey,
           // Field mask is required, and it also controls billing tier — ask
@@ -136,9 +161,13 @@ class DisposalService {
       );
 
       if (res.statusCode != 200) {
-        lastError = res.statusCode == 403
-            ? 'Maps key rejected this request. Check the Places API restriction.'
-            : 'Could not load disposal sites (${res.statusCode}).';
+        lastError = switch (res.statusCode) {
+          403 => Platform.isAndroid || Platform.isIOS
+              ? 'Maps key rejected this app. Check the package name and SHA-1 on the key.'
+              : 'Maps key rejected this request. Desktop needs a key without an app restriction.',
+          400 => 'Places rejected the request. Is Places API (New) enabled?',
+          _   => 'Could not load disposal sites (${res.statusCode}).',
+        };
         // ignore: avoid_print
         print('DisposalService: HTTP ${res.statusCode} — ${res.body}');
         return const [];
