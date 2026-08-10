@@ -13,6 +13,9 @@ class DisposalSite {
   final double? rating;
   final bool? openNow;
 
+  /// Google place types, e.g. recycling_center, storage, point_of_interest.
+  final List<String> types;
+
   /// Straight-line metres from the agent. Google returns no distance for a
   /// nearby search, so this is computed locally.
   final double distanceMeters;
@@ -26,11 +29,28 @@ class DisposalSite {
     required this.distanceMeters,
     this.rating,
     this.openNow,
+    this.types = const [],
   });
 
   String get distanceLabel => distanceMeters < 1000
       ? '${distanceMeters.round()} m'
       : '${(distanceMeters / 1000).toStringAsFixed(1)} km';
+
+
+  /// Words that mark somewhere as actually taking waste. A free-text search
+  /// will happily return a pizzeria, and routing an agent there to drop off
+  /// hazardous material is worse than returning nothing.
+  static const _disposalWords = [
+    'recycl', 'waste', 'scrap', 'salvage', 'junk', 'landfill', 'dump',
+    'refuse', 'garbage', 'rubbish', 'compost', 'transfer station',
+    'skip hire', 'e-waste', 'ewaste', 'sanitation', 'disposal',
+  ];
+
+  /// False when nothing about the place suggests it accepts waste.
+  bool get acceptsWaste {
+    final haystack = [name, address, ...types].join(' ').toLowerCase();
+    return _disposalWords.any(haystack.contains);
+  }
 
   /// Hands off to the Google Maps app for turn-by-turn. Doing it this way
   /// costs nothing — the Routes API is a billed SKU we do not need.
@@ -195,7 +215,8 @@ class DisposalService {
           // for less, pay less.
           'X-Goog-FieldMask':
               'places.id,places.displayName,places.formattedAddress,'
-              'places.location,places.rating,places.currentOpeningHours.openNow',
+              'places.location,places.rating,places.types,'
+              'places.currentOpeningHours.openNow',
         },
         body: jsonEncode({
           'textQuery': text,
@@ -246,6 +267,7 @@ class DisposalService {
           lng: plng,
           rating: (p['rating'] as num?)?.toDouble(),
           openNow: p['currentOpeningHours']?['openNow'] as bool?,
+          types: (p['types'] as List?)?.whereType<String>().toList() ?? const [],
           distanceMeters: _haversine(lat, lng, plat, plng),
         ));
       }

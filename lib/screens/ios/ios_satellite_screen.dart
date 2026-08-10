@@ -732,8 +732,13 @@ class _IosSatelliteScreenState extends State<IosSatelliteScreen> {
                           Text(s.name, maxLines: 1, overflow: TextOverflow.ellipsis,
                               style: TextStyle(color: gw.text,
                                   fontSize: 13.5, fontWeight: FontWeight.w700)),
-                          Text(s.address, maxLines: 1, overflow: TextOverflow.ellipsis,
-                              style: TextStyle(color: gw.muted, fontSize: 11)),
+                          if (!s.acceptsWaste)
+                            Text('Not a disposal site',
+                                style: TextStyle(color: gw.amber,
+                                    fontSize: 10.5, fontWeight: FontWeight.w700))
+                          else
+                            Text(s.address, maxLines: 1, overflow: TextOverflow.ellipsis,
+                                style: TextStyle(color: gw.muted, fontSize: 11)),
                         ],
                       ),
                     ),
@@ -822,18 +827,42 @@ class _IosSatelliteScreenState extends State<IosSatelliteScreen> {
               color: gw.muted, fontSize: 12, height: 1.45)),
         ],
 
+        if (!s.acceptsWaste) ...[
+          const SizedBox(height: 12),
+          Container(
+            padding: const EdgeInsets.all(10),
+            decoration: BoxDecoration(
+              color: gw.amber.withOpacity(.14),
+              borderRadius: BorderRadius.circular(10),
+              border: Border.all(color: gw.amber.withOpacity(.4)),
+            ),
+            child: Row(children: [
+              GwHazardIcon(size: 15, color: gw.amber),
+              const SizedBox(width: 9),
+              Expanded(
+                child: Text(
+                  'This does not look like a waste facility. Check it accepts '
+                  'your load before travelling.',
+                  style: TextStyle(color: gw.amber, fontSize: 11, height: 1.35)),
+              ),
+            ]),
+          ),
+        ],
+
         const SizedBox(height: 14),
         Row(children: [
           Expanded(
             child: GwGlass(
               radius: 12,
-              accent: gw.green,
+              accent: s.acceptsWaste ? gw.green : gw.amber,
               onTap: () => _startNavigation(s),
               padding: const EdgeInsets.symmetric(vertical: 11),
               child: Row(mainAxisAlignment: MainAxisAlignment.center, children: [
-                GwIcon(GwIcons.arrowUp, size: 15, color: gw.green),
+                GwIcon(GwIcons.arrowUp, size: 15,
+                    color: s.acceptsWaste ? gw.green : gw.amber),
                 const SizedBox(width: 8),
-                Text('Start', style: TextStyle(color: gw.green,
+                Text('Start', style: TextStyle(
+                    color: s.acceptsWaste ? gw.green : gw.amber,
                     fontSize: 13, fontWeight: FontWeight.w700)),
               ]),
             ),
