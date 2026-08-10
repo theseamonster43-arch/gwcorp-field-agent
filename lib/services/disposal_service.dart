@@ -52,6 +52,29 @@ class DisposalSite {
     return _disposalWords.any(haystack.contains);
   }
 
+
+  /// Google place types that clearly are not somewhere you drop off waste.
+  /// Filtering on these rather than on the absence of disposal words means a
+  /// facility with an unusual name — Bee'ah, Enviroserve, Tadweer — is still
+  /// shown, while a shopping mall is not.
+  static const _notDisposalTypes = [
+    'shopping_mall', 'restaurant', 'cafe', 'bar', 'bakery', 'food',
+    'clothing_store', 'shoe_store', 'jewelry_store', 'book_store',
+    'furniture_store', 'department_store', 'supermarket', 'grocery_store',
+    'convenience_store', 'liquor_store', 'pharmacy', 'beauty_salon',
+    'hair_care', 'spa', 'gym', 'lodging', 'hotel', 'school', 'university',
+    'hospital', 'doctor', 'dentist', 'bank', 'atm', 'movie_theater',
+    'night_club', 'casino', 'church', 'mosque', 'park', 'tourist_attraction',
+    'gas_station', 'car_dealer', 'real_estate_agency', 'travel_agency',
+  ];
+
+  /// True when this is plainly a shop, restaurant or similar and nothing
+  /// about it suggests it takes waste. Those get dropped from results.
+  bool get isIrrelevant {
+    if (acceptsWaste) return false;
+    return types.any(_notDisposalTypes.contains);
+  }
+
   /// Hands off to the Google Maps app for turn-by-turn. Doing it this way
   /// costs nothing — the Routes API is a billed SKU we do not need.
   Uri get directionsUri => Uri.parse(
@@ -272,8 +295,19 @@ class DisposalService {
         ));
       }
 
+      // Shops, restaurants and the like are noise in a disposal finder.
+      final kept = sites.where((s) => !s.isIrrelevant).toList();
+      final dropped = sites.length - kept.length;
+      if (kept.isEmpty && dropped > 0) {
+        lastError = 'No disposal sites match that. Those results were shops '
+            'or venues, not waste facilities.';
+      }
+      sites
+        ..clear()
+        ..addAll(kept);
+
       sites.sort((a, b) => a.distanceMeters.compareTo(b.distanceMeters));
-      lastError = null;
+      if (sites.isNotEmpty) lastError = null;
       _cache[key] = sites;
       return sites;
     } catch (e) {
