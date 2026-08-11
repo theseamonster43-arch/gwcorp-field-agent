@@ -15,6 +15,7 @@ on:
       - 'lib/**'
       - 'macos/**'
       - 'pubspec.yaml'
+      - 'analysis_options.yaml'
       - '.github/workflows/macos-build.yml'
 
 jobs:
