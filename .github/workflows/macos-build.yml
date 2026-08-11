@@ -1,0 +1,56 @@
+# Builds the macOS app on GitHub's Apple hardware.
+#
+# Exists because macOS builds need macOS — Xcode, codesign and the .app bundle
+# format have no Windows equivalent. The dev machine is a PC, so this is the
+# only way to produce a Mac build without buying one.
+#
+# Produces the zip that download.html serves to Mac visitors.
+name: macOS build
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [master, main]
+    paths:
+      - 'lib/**'
+      - 'macos/**'
+      - 'pubspec.yaml'
+      - '.github/workflows/macos-build.yml'
+
+jobs:
+  build:
+    runs-on: macos-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+
+      - run: flutter --version
+      - run: flutter pub get
+      - run: flutter analyze --no-fatal-infos
+
+      # Unsigned: signing needs a paid Apple Developer account and certificates
+      # in secrets. Without it Gatekeeper asks the user to right-click → Open
+      # the first time, which download.html explains.
+      - run: flutter build macos --release
+
+      # `ditto` rather than `zip`: it preserves symlinks and resource forks
+      # inside the .app, which a plain zip corrupts — the app then refuses to
+      # launch on the far side with no useful error.
+      - name: Package the app
+        run: |
+          cd build/macos/Build/Products/Release
+          ditto -c -k --sequesterRsrc --keepParent \
+            "GWCORP Field Agent.app" \
+            "$GITHUB_WORKSPACE/GWCORP_Field_Agent_macOS.zip"
+          ls -lh "$GITHUB_WORKSPACE/GWCORP_Field_Agent_macOS.zip"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: gwcorp-field-agent-macos
+          path: GWCORP_Field_Agent_macOS.zip
+          retention-days: 30
