@@ -9,17 +9,14 @@
 	<key>com.apple.security.app-sandbox</key>
 	<false/>
 
-	<!-- Firebase Auth keeps its tokens in the keychain. Without a declared
-	     access group macOS refuses the app one, which surfaces as
-	     "An error occurred when accessing the keychain" on every sign-in.
-	     Ad-hoc signing leaves AppIdentifierPrefix empty, so the group is the
-	     bundle id on its own rather than $(AppIdentifierPrefix)-prefixed. -->
-	<key>keychain-access-groups</key>
-	<array>
-		<string>com.gwcorp.gwcorpFieldAgent</string>
-	</array>
+	<!-- No keychain-access-groups here, deliberately.
+	     A group must be prefixed with a real team identifier. Declaring a bare
+	     bundle id made the ad-hoc signature invalid, and the app stopped
+	     launching entirely: "Launch failed / Launchd job spawn failed"
+	     (POSIX 162). Outside the sandbox the app reaches the login keychain
+	     without a group, so none is needed. Add one only together with a
+	     Developer ID, where $(AppIdentifierPrefix) actually resolves. -->
 
-	<!-- Meaningless with the sandbox off, correct the moment it returns. -->
 	<key>com.apple.security.network.client</key>
 	<true/>
 	<key>com.apple.security.network.server</key>
