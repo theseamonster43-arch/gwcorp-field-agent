@@ -29,16 +29,28 @@ class MainFlutterWindow: NSWindow {
   /// button by hand drifts from the system look.
   private func positionTrafficLights() {
     guard let close = standardWindowButton(.closeButton),
+          let mini = standardWindowButton(.miniaturizeButton),
+          let zoom = standardWindowButton(.zoomButton),
           let container = close.superview,
           let parent = container.superview else { return }
 
-    // Recomputed every time, never skipped. Guarding on height meant the
-    // origin was only ever set once, so after a zoom or resize the container
-    // kept a stale y and the buttons disappeared off the window.
+    // Grow the container to the height of our bar so there is room to move in.
+    // Recomputed every time: guarding on height meant the origin was set once,
+    // so after a zoom the container kept a stale y and the buttons vanished.
     var frame = container.frame
     frame.size.height = gwTitleBarHeight
     frame.origin.y = parent.bounds.height - gwTitleBarHeight
     container.frame = frame
+
+    // Then place the buttons explicitly. Letting the taller container carry
+    // them just pushed them down by the full difference — they hang off its
+    // bottom edge, not its centre — which is why they ended up too low.
+    // Container coordinates are bottom-up, so centring is a plain midpoint.
+    for button in [close, mini, zoom] {
+      var f = button.frame
+      f.origin.y = (gwTitleBarHeight - f.height) / 2
+      button.setFrameOrigin(f.origin)
+    }
   }
 
   // Re-applied on every layout and resize: macOS restores the defaults after a

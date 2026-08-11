@@ -50,8 +50,28 @@ jobs:
       - name: Ad-hoc sign
         run: |
           cd build/macos/Build/Products/Release
-          codesign --force --deep --sign - "GWCORP Field Agent.app"
-          codesign --verify --verbose=2 "GWCORP Field Agent.app"
+          APP="GWCORP Field Agent.app"
+
+          # Nested code first, outermost last. --deep is discouraged by Apple
+          # and can leave a bundle that verifies as damaged, which macOS then
+          # treats as unsigned — no keychain, so Firebase Auth fails exactly
+          # as it did when the app carried no signature at all.
+          find "$APP/Contents/Frameworks" -type f \( -name "*.dylib" -o -perm +111 \) -print0 2>/dev/null \
+            | while IFS= read -r -d '' f; do codesign --force --sign - "$f" || true; done
+          for fw in "$APP/Contents/Frameworks/"*.framework; do
+            [ -e "$fw" ] && codesign --force --sign - "$fw" || true
+          done
+
+          # --force replaces the signature and drops whatever entitlements the
+          # build applied, so they have to be handed back explicitly.
+          codesign --force --sign - \
+            --entitlements "$GITHUB_WORKSPACE/macos/Runner/Release.entitlements" \
+            "$APP"
+
+          echo "--- verify ---"
+          codesign --verify --deep --strict --verbose=2 "$APP"
+          echo "--- entitlements actually on the bundle ---"
+          codesign --display --entitlements :- "$APP"
 
       # A .dmg, because that is what a Mac user expects to double-click: it
       # mounts, shows the app beside an Applications shortcut, and makes
