@@ -48,8 +48,14 @@ class _SignInScreenState extends State<SignInScreen> with SingleTickerProviderSt
   }
 
   Future<void> _signInWithGoogle() async {
-    final isDesktopPlatform = Platform.isWindows || Platform.isLinux || Platform.isMacOS;
-    if (isDesktopPlatform) {
+    // macOS is deliberately excluded: google_sign_in has a real macOS
+    // implementation (google_sign_in_ios covers both), so it can use the same
+    // native flow as the phones. The browser dance below exists only because
+    // Windows and Linux have no plugin — and on macOS it silently failed, with
+    // the browser login succeeding while the app sat waiting on a localhost
+    // callback that never arrived.
+    final needsBrowserFlow = Platform.isWindows || Platform.isLinux;
+    if (needsBrowserFlow) {
       await _signInWithGoogleDesktop();
       return;
     }

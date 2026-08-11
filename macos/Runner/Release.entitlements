@@ -2,20 +2,27 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
-	<!-- Sandbox off, deliberately.
-	     Firebase Auth stores its tokens in the macOS keychain. Inside the
-	     sandbox that needs a keychain-access-group entitlement, and a group is
-	     only granted to an app signed with a real team identifier — which this
-	     build, distributed outside the App Store and unsigned, does not have.
-	     The result was sign-in failing with "An error occurred when accessing
-	     the keychain" for both Google and email.
-
-	     Turn this back on if the app ever ships through the App Store, and add
-	     keychain-access-groups alongside a signing identity at the same time. -->
+	<!-- Sandbox off. The app is distributed outside the App Store and signed
+	     ad-hoc, so it has no team identifier — and a sandboxed app without one
+	     cannot be granted a keychain group. Turn this back on if it ever ships
+	     through the App Store, alongside a real signing identity. -->
 	<key>com.apple.security.app-sandbox</key>
 	<false/>
-	<!-- Harmless with the sandbox off, and correct the moment it goes back on. -->
+
+	<!-- Firebase Auth keeps its tokens in the keychain. Without a declared
+	     access group macOS refuses the app one, which surfaces as
+	     "An error occurred when accessing the keychain" on every sign-in.
+	     Ad-hoc signing leaves AppIdentifierPrefix empty, so the group is the
+	     bundle id on its own rather than $(AppIdentifierPrefix)-prefixed. -->
+	<key>keychain-access-groups</key>
+	<array>
+		<string>com.gwcorp.gwcorpFieldAgent</string>
+	</array>
+
+	<!-- Meaningless with the sandbox off, correct the moment it returns. -->
 	<key>com.apple.security.network.client</key>
+	<true/>
+	<key>com.apple.security.network.server</key>
 	<true/>
 	<key>com.apple.security.personal-information.location</key>
 	<true/>

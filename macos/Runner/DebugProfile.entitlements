@@ -15,5 +15,13 @@
 	<true/>
 	<key>com.apple.security.personal-information.location</key>
 	<true/>
+	<!-- Firebase Auth stores its tokens here. Without a declared access group
+	     macOS refuses the app a keychain, which surfaces as
+	     'An error occurred when accessing the keychain'. Ad-hoc signing leaves
+	     AppIdentifierPrefix empty, so the group is the bundle id alone. -->
+	<key>keychain-access-groups</key>
+	<array>
+		<string>com.gwcorp.gwcorpFieldAgent</string>
+	</array>
 </dict>
 </plist>
