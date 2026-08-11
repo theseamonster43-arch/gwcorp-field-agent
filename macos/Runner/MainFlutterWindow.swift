@@ -42,14 +42,22 @@ class MainFlutterWindow: NSWindow {
     frame.origin.y = parent.bounds.height - gwTitleBarHeight
     container.frame = frame
 
-    // Then place the buttons explicitly. Letting the taller container carry
-    // them just pushed them down by the full difference — they hang off its
-    // bottom edge, not its centre — which is why they ended up too low.
-    // Container coordinates are bottom-up, so centring is a plain midpoint.
-    for button in [close, mini, zoom] {
-      var f = button.frame
-      f.origin.y = (gwTitleBarHeight - f.height) / 2
-      button.setFrameOrigin(f.origin)
+    // Then place the buttons explicitly, on the next runloop turn. Setting
+    // them inline was being undone by AppKit's own layout pass immediately
+    // afterwards, which is why they stayed pinned low however the maths was
+    // written.
+    DispatchQueue.main.async {
+      let flipped = container.isFlipped
+      for button in [close, mini, zoom] {
+        var f = button.frame
+        f.origin.y = (self.gwTitleBarHeight - f.height) / 2
+        button.setFrameOrigin(f.origin)
+      }
+      NSLog("GW traffic lights: container=%@ flipped=%@ close=%@ height=%.1f",
+            NSStringFromRect(container.frame),
+            flipped ? "yes" : "no",
+            NSStringFromRect(close.frame),
+            self.gwTitleBarHeight)
     }
   }
 
