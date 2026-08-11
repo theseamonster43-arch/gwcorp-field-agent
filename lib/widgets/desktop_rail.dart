@@ -41,7 +41,10 @@ class DesktopRail extends StatelessWidget {
         width: 74,
         padding: const EdgeInsets.symmetric(vertical: 14),
         decoration: BoxDecoration(
-          color: gw.bg2.withOpacity(.35),
+          // Opaque on purpose. The rail is chrome — it sits outside GwScreenBg,
+          // so a translucent fill has nothing behind it but the bare window and
+          // goes muddy in light mode.
+          color: gw.bg2,
           border: Border(right: BorderSide(color: gw.border)),
         ),
         child: Column(children: [

@@ -5,12 +5,15 @@ import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
+import 'package:qr_flutter/qr_flutter.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../../data/disposal_registry.dart';
 import '../../data/models.dart';
 import '../../services/claude_service.dart';
+import '../../services/deep_links.dart';
 import '../../services/disposal_service.dart';
 import '../../theme/gw_theme.dart';
+import '../../widgets/gw_desktop_map.dart';
 import '../../widgets/gw_glass.dart';
 import '../../widgets/gw_icons.dart';
 import '../../widgets/gw_responsive.dart';
@@ -95,7 +98,33 @@ class _IosSatelliteScreenState extends State<IosSatelliteScreen> {
     super.initState();
     DisposalRegistry.start(FirebaseAuth.instance.currentUser?.email ?? '');
     DisposalRegistry.revision.addListener(_onRegistryChanged);
+    gwPendingHandoff.addListener(_onHandoff);
     _locate();
+    // A link that arrived before this screen existed is still waiting.
+    if (gwPendingHandoff.value != null) _onHandoff();
+  }
+
+  /// Routes straight to a destination scanned from the desktop QR.
+  ///
+  /// The link carries only a name and a position, so this builds a site from
+  /// those rather than searching — the agent already picked it on the desktop
+  /// and a fresh search could rank something else first.
+  void _onHandoff() {
+    final h = gwPendingHandoff.value;
+    if (h == null || !mounted) return;
+    gwPendingHandoff.value = null; // consumed
+
+    _select(DisposalSite(
+      id: 'handoff:${h.lat},${h.lng}',
+      name: h.name,
+      address: '',
+      lat: h.lat,
+      lng: h.lng,
+      distanceMeters: _pos == null
+          ? 0
+          : Geolocator.distanceBetween(
+              _pos!.latitude, _pos!.longitude, h.lat, h.lng),
+    ));
   }
 
   void _onRegistryChanged() {
@@ -107,6 +136,7 @@ class _IosSatelliteScreenState extends State<IosSatelliteScreen> {
   @override
   void dispose() {
     DisposalRegistry.revision.removeListener(_onRegistryChanged);
+    gwPendingHandoff.removeListener(_onHandoff);
     _debounce?.cancel();
     _followSub?.cancel();
     _searchCtrl.dispose();
@@ -224,6 +254,83 @@ class _IosSatelliteScreenState extends State<IosSatelliteScreen> {
   void _onQueryChanged(String _) {
     _debounce?.cancel();
     _debounce = Timer(const Duration(milliseconds: 600), _search);
+  }
+
+  /// Shows a QR that opens this destination in the phone app.
+  ///
+  /// The code points at an https link rather than the gwcorp:// scheme
+  /// directly — phone cameras open custom schemes inconsistently, and the web
+  /// page can also offer the download if the app isn't installed.
+  Future<void> _showHandoff(DisposalSite s) async {
+    final gw = GwTheme.of(context);
+    // .html is explicit: Hosting only strips the extension with cleanUrls on,
+    // and turning that on would 301 every existing link on the site.
+    final link = Uri.https('ihs-gwcorp.web.app', '/go.html', {
+      'lat': s.lat.toStringAsFixed(6),
+      'lng': s.lng.toStringAsFixed(6),
+      'n': s.name,
+    }).toString();
+
+    await showDialog<void>(
+      context: context,
+      builder: (_) => Dialog(
+        backgroundColor: gw.bg2,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(22)),
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(26, 24, 26, 20),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                'Continue on your phone',
+                style: TextStyle(
+                  color: gw.text,
+                  fontSize: 16,
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
+              const SizedBox(height: 6),
+              Text(
+                'Scan to open ${s.name} in the GWCORP app.',
+                textAlign: TextAlign.center,
+                style: TextStyle(color: gw.muted, fontSize: 12.5, height: 1.4),
+              ),
+              const SizedBox(height: 18),
+              // White quiet zone: scanners need the contrast, and a dark QR on
+              // a dark panel reads badly on most phone cameras.
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(14),
+                ),
+                child: QrImageView(
+                  data: link,
+                  size: 190,
+                  backgroundColor: Colors.white,
+                  eyeStyle: const QrEyeStyle(
+                    eyeShape: QrEyeShape.square,
+                    color: Color(0xFF06210F),
+                  ),
+                  dataModuleStyle: const QrDataModuleStyle(
+                    dataModuleShape: QrDataModuleShape.square,
+                    color: Color(0xFF06210F),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 18),
+              TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: Text(
+                  'Done',
+                  style: TextStyle(color: gw.green, fontWeight: FontWeight.w700),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
   }
 
   /// Draws the route and frames both ends on the map.
@@ -379,6 +486,13 @@ class _IosSatelliteScreenState extends State<IosSatelliteScreen> {
   /// shown. Deliberately not full navigation — no voice, and rerouting only
   /// happens if you stray far enough to be clearly off the line.
   Future<void> _startNavigation(DisposalSite s) async {
+    // Nobody drives looking at a desktop. Hand the destination to the phone
+    // instead of pretending to navigate from a monitor.
+    if (!_mapSupported) {
+      await _showHandoff(s);
+      return;
+    }
+
     if (_route == null || _route!.steps.isEmpty) {
       // No steps to follow, so the Maps app is genuinely the better answer.
       await launchUrl(s.directionsUri, mode: LaunchMode.externalApplication);
@@ -807,7 +921,27 @@ class _IosSatelliteScreenState extends State<IosSatelliteScreen> {
 
   Widget _mapLayer(GwColors gw, double barGap) {
     if (!_mapSupported) {
-      // Desktop has no map plugin, so the list becomes the whole screen.
+      // Windows has no map plugin either, but it can render the hosted map
+      // page in a WebView — so it gets a real map rather than a bare list.
+      if (Platform.isWindows) {
+        return GwDesktopMap(
+          sites: _sites,
+          center: _pos == null
+              ? null
+              : (lat: _pos!.latitude, lng: _pos!.longitude),
+          polyline: _route?.encoded,
+          selectedId: _selected?.id,
+          onSelect: (id) {
+            for (final s in _sites) {
+              if (s.id == id) {
+                _select(s);
+                break;
+              }
+            }
+          },
+        );
+      }
+      // Anything else desktop-ish falls back to the list.
       return Padding(
         padding: EdgeInsets.only(top: MediaQuery.of(context).padding.top + 76),
         child: ListView.separated(

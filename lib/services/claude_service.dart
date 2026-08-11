@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'dart:io';
 import 'package:cloud_functions/cloud_functions.dart';
+import 'gw_callable.dart';
 import '../data/models.dart';
 
 /// All Claude traffic goes through the `claude` Cloud Function.
@@ -9,17 +10,15 @@ import '../data/models.dart';
 /// compiled into the app the way a String.fromEnvironment key would be, and
 /// the function checks Firebase Auth before spending anything.
 class ClaudeService {
-  static final _fn = FirebaseFunctions.instance.httpsCallable('claude');
-
   /// Why the last call failed, in words a field agent can act on. Null after
   /// a success — callers show this instead of failing silently.
   static String? lastError;
 
   static Future<String?> _call(Map<String, dynamic> payload) async {
     try {
-      final res = await _fn.call<Map<String, dynamic>>(payload);
+      final res = await GwCallable.call('claude', payload);
       lastError = null;
-      final text = res.data['text'];
+      final text = res['text'];
       return text is String ? text : null;
     } on FirebaseFunctionsException catch (e) {
       lastError = switch (e.code) {

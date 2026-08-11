@@ -48,6 +48,17 @@ dependencies:
   speech_to_text: ^7.0.0
   flutter_tts: ^4.2.0
 
+  # Desktop map: google_maps_flutter has no Windows support, so Windows renders
+  # the map in a WebView pointed at the hosted /map page.
+  webview_windows: ^0.4.0
+
+  # Desktop cannot navigate while driving — Start shows a QR that hands the
+  # destination to the phone instead.
+  qr_flutter: ^4.1.0
+
+  # Receives the gwcorp:// handoff the desktop QR points at.
+  app_links: ^6.3.2
+
 dev_dependencies:
   flutter_test:
     sdk: flutter

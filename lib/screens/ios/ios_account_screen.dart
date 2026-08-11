@@ -32,13 +32,6 @@ class _IosAccountScreenState extends State<IosAccountScreen> {
 
   void _rebuild() => setState(() {});
 
-  bool get _isDark {
-    final mode = themeModeNotifier.value;
-    if (mode == ThemeMode.dark) return true;
-    if (mode == ThemeMode.light) return false;
-    return MediaQuery.of(context).platformBrightness == Brightness.dark;
-  }
-
   Future<bool> _confirm({
     required String title,
     required String body,
@@ -208,31 +201,29 @@ class _IosAccountScreenState extends State<IosAccountScreen> {
             const GwSectionHeader(title: 'Preferences'),
             GwGlass(
               radius: 20,
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
-              child: Padding(
-                padding: const EdgeInsets.symmetric(vertical: 8),
-                child: Row(
-                  children: [
-                    GwIcon(GwIcons.moon, size: 20, color: gw.text),
-                    const SizedBox(width: 14),
-                    Expanded(
-                      child: Text(
-                        'Dark mode',
-                        style: TextStyle(
-                          color: gw.text,
-                          fontSize: 13.5,
-                          fontWeight: FontWeight.w600,
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      GwIcon(GwIcons.moon, size: 20, color: gw.text),
+                      const SizedBox(width: 14),
+                      Expanded(
+                        child: Text(
+                          'Appearance',
+                          style: TextStyle(
+                            color: gw.text,
+                            fontSize: 13.5,
+                            fontWeight: FontWeight.w600,
+                          ),
                         ),
                       ),
-                    ),
-                    Switch.adaptive(
-                      value: _isDark,
-                      activeColor: gw.green,
-                      onChanged: (v) => themeModeNotifier.value =
-                          v ? ThemeMode.dark : ThemeMode.light,
-                    ),
-                  ],
-                ),
+                    ],
+                  ),
+                  const SizedBox(height: 12),
+                  _AppearancePicker(gw: gw),
+                ],
               ),
             ),
             const SizedBox(height: 10),
@@ -370,6 +361,70 @@ class _ActionRow extends StatelessWidget {
               GwIcon(GwIcons.chevronRight, size: 18, color: chevronColor),
             ],
           ),
+        ),
+      ),
+    );
+  }
+}
+
+/// System / Light / Dark, as a segmented control.
+///
+/// System is the default and stays a real choice rather than an implied one —
+/// a plain dark-mode switch has no way to express "follow the device", so
+/// toggling it once used to strand the app on a fixed theme forever.
+class _AppearancePicker extends StatelessWidget {
+  const _AppearancePicker({required this.gw});
+
+  final GwColors gw;
+
+  static const _options = <(String, ThemeMode)>[
+    ('System', ThemeMode.system),
+    ('Light', ThemeMode.light),
+    ('Dark', ThemeMode.dark),
+  ];
+
+  @override
+  Widget build(BuildContext context) {
+    return ValueListenableBuilder<ThemeMode>(
+      valueListenable: themeModeNotifier,
+      builder: (context, mode, _) => Container(
+        padding: const EdgeInsets.all(3),
+        decoration: BoxDecoration(
+          color: gw.bg2,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: gw.border),
+        ),
+        child: Row(
+          children: [
+            for (final (label, value) in _options)
+              Expanded(
+                child: GestureDetector(
+                  behavior: HitTestBehavior.opaque,
+                  onTap: () => themeModeNotifier.value = value,
+                  child: AnimatedContainer(
+                    duration: const Duration(milliseconds: 180),
+                    curve: Curves.easeOut,
+                    padding: const EdgeInsets.symmetric(vertical: 8),
+                    decoration: BoxDecoration(
+                      color: mode == value
+                          ? gw.green.withOpacity(.16)
+                          : Colors.transparent,
+                      borderRadius: BorderRadius.circular(9),
+                    ),
+                    child: Center(
+                      child: Text(
+                        label,
+                        style: TextStyle(
+                          color: mode == value ? gw.green : gw.muted,
+                          fontSize: 12.5,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+          ],
         ),
       ),
     );

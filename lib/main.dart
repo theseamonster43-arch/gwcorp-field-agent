@@ -6,6 +6,7 @@ import 'package:go_router/go_router.dart';
 import 'package:window_manager/window_manager.dart';
 import 'firebase_options.dart';
 import 'theme/gw_theme.dart';
+import 'services/deep_links.dart';
 import 'utils/app_preferences.dart';
 import 'widgets/desktop_chrome.dart';
 import 'widgets/desktop_rail.dart';
@@ -40,6 +41,10 @@ void main() async {
     );
   }
   await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
+  // Before runApp, so the saved theme is in place for the first frame.
+  await gwLoadPreferences();
+  // Catches the cold-start case: the app launched *by* a gwcorp:// link.
+  await gwInitDeepLinks();
   runApp(const GwApp());
 }
 

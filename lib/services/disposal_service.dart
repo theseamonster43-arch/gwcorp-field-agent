@@ -1,8 +1,8 @@
 import 'dart:convert';
 import 'dart:typed_data';
-import 'dart:io' show Platform;
 import 'dart:math' as math;
-import 'package:http/http.dart' as http;
+import 'package:cloud_functions/cloud_functions.dart';
+import 'gw_callable.dart';
 import '../data/disposal_registry.dart';
 
 /// A place the agent can take waste to.
@@ -135,11 +135,17 @@ class DisposalRoute {
   final List<({double lat, double lng})> points;
   final List<RouteStep> steps;
 
+  /// The polyline as Google encoded it, kept alongside the decoded points so
+  /// the desktop map page can hand it straight to the Maps JS decoder rather
+  /// than shipping a few thousand coordinate pairs through a WebView bridge.
+  final String? encoded;
+
   const DisposalRoute({
     required this.distanceMeters,
     required this.duration,
     required this.points,
     this.steps = const [],
+    this.encoded,
   });
 
   String get distanceLabel => distanceMeters < 1000
@@ -196,45 +202,26 @@ enum WasteRoute {
 class DisposalService {
   /// Restricted in Cloud Console to this app's package and signing
   /// fingerprint, so shipping it in the client is the intended design.
-  /// Android/desktop key — restricted to the package + signing fingerprint.
-  static const _androidKey = String.fromEnvironment(
-    'GW_MAPS_KEY',
-    defaultValue: 'AIzaSyAtbVbVAV3DjNS59R2F1Ms0RVkUI_NckBQ',
-  );
+  /// Every billable Maps call goes through the `maps` Cloud Function.
+  ///
+  /// No Maps key ships in the client any more. Phones could bind a key to their
+  /// package or bundle id, but desktop can present no identity at all, so the
+  /// only key that worked there was an unrestricted one — extractable from the
+  /// exe by anyone who downloaded the installer. Proxying also puts the field
+  /// mask server-side, and the field mask is what picks the billing tier.
+  ///
+  /// The keys in AndroidManifest.xml and AppDelegate.swift stay: those are for
+  /// the Maps SDK drawing the map, which never touches this class.
+  static Future<Map<String, dynamic>> _fn(Map<String, dynamic> args) =>
+      GwCallable.call('maps', args);
 
-  /// iOS key — restricted to the bundle id. A key restricted to an Android
-  /// package 403s every request from iOS, so the platforms cannot share one.
-  static const _iosKey = String.fromEnvironment(
-    'GW_MAPS_KEY_IOS',
-    defaultValue: 'AIzaSyAYu-cA58wp64Xen374JNqqFMTNr__Uw-4',
-  );
-
-  static String get _apiKey => Platform.isIOS ? _iosKey : _androidKey;
-
-  static const _endpoint = 'https://places.googleapis.com/v1/places:searchText';
-
-  /// Package name and signing fingerprint the Android key is restricted to.
-  /// The Maps SDK sends these automatically; a plain REST call has to add them
-  /// by hand or Google sees an anonymous request and returns 403.
-  static const _androidPackage = 'com.gwcorp.fieldagent';
-  static const _androidCert    = 'A6A9FF1FE6770B4134E885C8825F5A221BB4F9A4';
-  static const _iosBundleId    = 'com.gwcorp.fieldagent';
-
-  /// Identity headers matching whichever key restriction applies here.
-  static Map<String, String> get _appHeaders {
-    if (Platform.isAndroid) {
-      return {
-        'X-Android-Package': _androidPackage,
-        'X-Android-Cert':    _androidCert,
+  /// Turns a callable failure into something a field agent can act on.
+  static String _describe(FirebaseFunctionsException e) => switch (e.code) {
+        'unauthenticated'    => 'Sign in to search disposal sites.',
+        'resource-exhausted' => 'Too many lookups this hour. Try again later.',
+        'not-found'          => 'Maps service is not deployed yet.',
+        _                    => 'Could not reach the maps service.',
       };
-    }
-    if (Platform.isIOS) {
-      return {'X-Ios-Bundle-Identifier': _iosBundleId};
-    }
-    // Desktop has no app identity to present, so it needs a key restricted by
-    // referrer or left unrestricted with a tight API + quota limit.
-    return const {};
-  }
 
   /// Why the last search failed, for the UI to show. Null after a success.
   static String? lastError;
@@ -263,46 +250,23 @@ class DisposalService {
     if (hit != null) return hit;
 
     try {
-      final res = await http.post(
-        Uri.parse(_endpoint),
-        headers: {
-          ..._appHeaders,
-          'Content-Type': 'application/json',
-          'X-Goog-Api-Key': _apiKey,
-          // Field mask is required, and it also controls billing tier — ask
-          // for less, pay less.
-          'X-Goog-FieldMask':
-              'places.id,places.displayName,places.formattedAddress,'
-              'places.location,places.rating,places.types,'
-              'places.photos,'
-              'places.currentOpeningHours.openNow',
-        },
-        body: jsonEncode({
-          'textQuery': text,
-          'maxResultCount': 10,
-          'locationBias': {
-            'circle': {
-              'center': {'latitude': lat, 'longitude': lng},
-              'radius': radiusMeters,
-            },
-          },
-        }),
-      );
-
-      if (res.statusCode != 200) {
-        lastError = switch (res.statusCode) {
-          403 => Platform.isAndroid || Platform.isIOS
-              ? 'Maps key rejected this app. Check the package name and SHA-1 on the key.'
-              : 'Maps key rejected this request. Desktop needs a key without an app restriction.',
-          400 => 'Places rejected the request. Is Places API (New) enabled?',
-          _   => 'Could not load disposal sites (${res.statusCode}).',
-        };
+      final Map<String, dynamic> body;
+      try {
+        final res = await _fn({
+          'mode': 'search',
+          'query': text,
+          'lat': lat,
+          'lng': lng,
+          'radiusMeters': radiusMeters,
+        });
+        body = Map<String, dynamic>.from(res['data'] as Map);
+      } on FirebaseFunctionsException catch (e) {
+        lastError = _describe(e);
         // ignore: avoid_print
-        print('DisposalService: HTTP ${res.statusCode} — ${res.body}');
+        print('DisposalService: ${e.code} — ${e.message}');
         return const [];
       }
 
-      final body   = jsonDecode(res.body) as Map<String, dynamic>;
       final places = body['places'];
       if (places is! List) {
         lastError = null;
@@ -384,19 +348,19 @@ class DisposalService {
     if (hit != null) return hit;
 
     try {
-      final res = await http.get(
-        Uri.parse('https://places.googleapis.com/v1/$photoName/media'
-            '?maxWidthPx=$maxWidthPx&key=$_apiKey'),
-        headers: _appHeaders,
-      );
-      if (res.statusCode != 200) {
-        // ignore: avoid_print
-        print('DisposalService.photo: HTTP ${res.statusCode}');
-        return null;
-      }
-      // Small and reused as the card reopens; the list is capped at 6 per site.
-      _photoCache[key] = res.bodyBytes;
-      return res.bodyBytes;
+      final res = await _fn({
+        'mode': 'photo',
+        'photoName': photoName,
+        'maxWidthPx': maxWidthPx,
+      });
+      final b64 = res['base64'];
+      if (b64 is! String || b64.isEmpty) return null;
+
+      // Callables speak JSON, so the bytes arrive base64'd. Decoded once and
+      // cached — the list is capped at 6 photos per site.
+      final bytes = base64Decode(b64);
+      _photoCache[key] = bytes;
+      return bytes;
     } catch (e) {
       // ignore: avoid_print
       print('DisposalService.photo: $e');
@@ -410,9 +374,6 @@ class DisposalService {
 
   // ── Routing ───────────────────────────────────────────────────────────────
 
-  static const _routesEndpoint =
-      'https://routes.googleapis.com/directions/v2:computeRoutes';
-
   /// Drive time and the line to draw on the map. Null when Routes is
   /// unavailable — callers fall back to straight-line distance.
   static Future<DisposalRoute?> route({
@@ -422,38 +383,15 @@ class DisposalService {
     required double toLng,
   }) async {
     try {
-      final res = await http.post(
-        Uri.parse(_routesEndpoint),
-        headers: {
-          ..._appHeaders,
-          'Content-Type': 'application/json',
-          'X-Goog-Api-Key': _apiKey,
-          'X-Goog-FieldMask':
-              'routes.duration,routes.distanceMeters,'
-              'routes.polyline.encodedPolyline,'
-              'routes.legs.steps.navigationInstruction,'
-              'routes.legs.steps.distanceMeters,'
-              'routes.legs.steps.endLocation',
-        },
-        body: jsonEncode({
-          'origin': {
-            'location': {'latLng': {'latitude': fromLat, 'longitude': fromLng}}
-          },
-          'destination': {
-            'location': {'latLng': {'latitude': toLat, 'longitude': toLng}}
-          },
-          'travelMode': 'DRIVE',
-          'routingPreference': 'TRAFFIC_AWARE',
-        }),
-      );
+      final res = await _fn({
+        'mode': 'route',
+        'fromLat': fromLat,
+        'fromLng': fromLng,
+        'toLat': toLat,
+        'toLng': toLng,
+      });
 
-      if (res.statusCode != 200) {
-        // ignore: avoid_print
-        print('DisposalService.route: HTTP ${res.statusCode} — ${res.body}');
-        return null;
-      }
-
-      final body   = jsonDecode(res.body) as Map<String, dynamic>;
+      final body   = Map<String, dynamic>.from(res['data'] as Map);
       final routes = body['routes'];
       if (routes is! List || routes.isEmpty) return null;
       final r = routes.first as Map<String, dynamic>;
@@ -489,6 +427,7 @@ class DisposalService {
         duration: Duration(seconds: seconds),
         points: encoded == null ? const [] : decodePolyline(encoded),
         steps: steps,
+        encoded: encoded,
       );
     } catch (e) {
       // ignore: avoid_print

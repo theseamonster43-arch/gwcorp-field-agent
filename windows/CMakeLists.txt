@@ -36,6 +36,12 @@ set(CMAKE_CXX_FLAGS_PROFILE "${CMAKE_CXX_FLAGS_RELEASE}")
 # Use Unicode for all projects.
 add_definitions(-DUNICODE -D_UNICODE)
 
+# webview_windows still includes <experimental/coroutine>, which MSVC 14.51
+# turned into a hard error (STL1011). The plugin is unmaintained, so the define
+# goes here rather than in the pub cache — an edit there would be wiped by the
+# next `flutter pub get`. Scoped to the build, not the source.
+add_definitions(-D_SILENCE_EXPERIMENTAL_COROUTINE_DEPRECATION_WARNINGS)
+
 # Compilation settings that should be applied to most targets.
 #
 # Be cautious about adding new options here, as plugins use this function by
