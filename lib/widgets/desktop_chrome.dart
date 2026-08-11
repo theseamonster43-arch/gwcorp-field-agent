@@ -53,6 +53,12 @@ class DesktopTitleBar extends StatefulWidget {
 
 class _DesktopTitleBarState extends State<DesktopTitleBar> with WindowListener {
   bool _isMaximized = false;
+
+  /// macOS hides the traffic lights in full screen, so the gap reserved for
+  /// them has to go with them — otherwise the brand sits stranded behind an
+  /// empty inset. They come back when the pointer reaches the top edge.
+  bool _isFullScreen = false;
+
   StreamSubscription<User?>? _authSub;
 
   @override
@@ -76,13 +82,31 @@ class _DesktopTitleBarState extends State<DesktopTitleBar> with WindowListener {
 
   Future<void> _checkMaximized() async {
     final m = await windowManager.isMaximized();
-    if (mounted) setState(() => _isMaximized = m);
+    // Also read full screen once at startup: the listener only fires on a
+    // change, so an app relaunched into full screen would keep the inset.
+    final f = await windowManager.isFullScreen();
+    if (mounted) {
+      setState(() {
+        _isMaximized = m;
+        _isFullScreen = f;
+      });
+    }
   }
 
   @override
   void onWindowMaximize()   { if (mounted) setState(() => _isMaximized = true); }
   @override
   void onWindowUnmaximize() { if (mounted) setState(() => _isMaximized = false); }
+
+  @override
+  void onWindowEnterFullScreen() {
+    if (mounted) setState(() => _isFullScreen = true);
+  }
+
+  @override
+  void onWindowLeaveFullScreen() {
+    if (mounted) setState(() => _isFullScreen = false);
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -111,8 +135,9 @@ class _DesktopTitleBarState extends State<DesktopTitleBar> with WindowListener {
             child: Padding(
               // Clear the native traffic lights on macOS, which sit in the
               // top-left of the window and would otherwise cover the brand.
+              // In full screen they are hidden, so the gap goes with them.
               padding: EdgeInsets.only(
-                left: Platform.isMacOS ? 82 : 18,
+                left: (Platform.isMacOS && !_isFullScreen) ? 82 : 18,
                 right: 18,
               ),
               child: minimal
