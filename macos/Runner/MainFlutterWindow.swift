@@ -13,32 +13,36 @@ class MainFlutterWindow: NSWindow {
 
     RegisterGeneratedPlugins(registry: flutterViewController)
 
+    // Without this the green button only zooms. A window with a hidden title
+    // bar does not advertise full-screen support on its own, so macOS falls
+    // back to zoom and the full-screen behaviour never appears.
+    self.collectionBehavior.insert(.fullScreenPrimary)
+
     super.awakeFromNib()
   }
 
-  /// Centres the traffic lights in the app's title bar.
+  /// Centres the traffic lights in the app's taller title bar.
   ///
-  /// With a hidden title bar, macOS still lays the buttons out for its own
-  /// standard 28pt bar, so against a 46pt one they sit too high and slightly
-  /// too far left. Their container is resized to match, which moves all three
-  /// together and keeps the spacing macOS chose — hand-placing each button
-  /// tends to drift from the system look.
+  /// macOS lays the buttons out for its own 28pt bar, so against a 46pt one
+  /// they sit hard against the top-left corner. Resizing their container moves
+  /// all three together and keeps the spacing macOS chose — placing each
+  /// button by hand drifts from the system look.
   private func positionTrafficLights() {
     guard let close = standardWindowButton(.closeButton),
-          let container = close.superview else { return }
+          let container = close.superview,
+          let parent = container.superview else { return }
 
+    // Recomputed every time, never skipped. Guarding on height meant the
+    // origin was only ever set once, so after a zoom or resize the container
+    // kept a stale y and the buttons disappeared off the window.
     var frame = container.frame
-    guard frame.height != gwTitleBarHeight else { return }
-
     frame.size.height = gwTitleBarHeight
-    // The container is pinned to the top of the window, and NSView origins are
-    // bottom-left, so growing it downward means moving the origin down too.
-    frame.origin.y = self.frame.height - gwTitleBarHeight
+    frame.origin.y = parent.bounds.height - gwTitleBarHeight
     container.frame = frame
   }
 
-  // Re-applied on every layout: macOS puts the buttons back at their default
-  // positions after a resize, a full-screen toggle, or a theme change.
+  // Re-applied on every layout and resize: macOS restores the defaults after a
+  // zoom, a full-screen toggle or a theme change.
   override func layoutIfNeeded() {
     super.layoutIfNeeded()
     positionTrafficLights()

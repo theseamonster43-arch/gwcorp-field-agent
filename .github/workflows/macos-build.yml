@@ -38,10 +38,20 @@ jobs:
       - run: flutter pub get
       - run: flutter analyze --no-fatal-infos
 
-      # Unsigned: signing needs a paid Apple Developer account and certificates
-      # in secrets. Without it Gatekeeper asks the user to right-click → Open
-      # the first time, which download.html explains.
+      # No Developer ID: that needs a paid Apple account and certificates in
+      # secrets. Gatekeeper therefore asks the user to right-click → Open the
+      # first time, which download.html explains.
       - run: flutter build macos --release
+
+      # Ad-hoc signature. Not a Developer ID, but macOS refuses keychain access
+      # to a completely unsigned binary — which is why Firebase Auth failed
+      # with "An error occurred when accessing the keychain" even after the
+      # sandbox came off. `-` is the ad-hoc identity; it needs no certificate.
+      - name: Ad-hoc sign
+        run: |
+          cd build/macos/Build/Products/Release
+          codesign --force --deep --sign - "GWCORP Field Agent.app"
+          codesign --verify --verbose=2 "GWCORP Field Agent.app"
 
       # A .dmg, because that is what a Mac user expects to double-click: it
       # mounts, shows the app beside an Applications shortcut, and makes
