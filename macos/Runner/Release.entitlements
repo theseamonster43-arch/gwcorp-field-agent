@@ -2,15 +2,21 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
+	<!-- Sandbox off, deliberately.
+	     Firebase Auth stores its tokens in the macOS keychain. Inside the
+	     sandbox that needs a keychain-access-group entitlement, and a group is
+	     only granted to an app signed with a real team identifier — which this
+	     build, distributed outside the App Store and unsigned, does not have.
+	     The result was sign-in failing with "An error occurred when accessing
+	     the keychain" for both Google and email.
+
+	     Turn this back on if the app ever ships through the App Store, and add
+	     keychain-access-groups alongside a signing identity at the same time. -->
 	<key>com.apple.security.app-sandbox</key>
-	<true/>
-	<!-- Without this the sandbox blocks every outbound request in a release
-	     build: Firebase, the maps proxy, the update check. Debug builds get it
-	     from DebugProfile.entitlements, so the failure only appears once the
-	     app is shipped. -->
+	<false/>
+	<!-- Harmless with the sandbox off, and correct the moment it goes back on. -->
 	<key>com.apple.security.network.client</key>
 	<true/>
-	<!-- Satellite asks for the agent's position. -->
 	<key>com.apple.security.personal-information.location</key>
 	<true/>
 </dict>
