@@ -42,19 +42,37 @@ jobs:
       # the first time, which download.html explains.
       - run: flutter build macos --release
 
-      # `ditto` rather than `zip`: it preserves symlinks and resource forks
-      # inside the .app, which a plain zip corrupts — the app then refuses to
-      # launch on the far side with no useful error.
-      - name: Package the app
+      # A .dmg, because that is what a Mac user expects to double-click: it
+      # mounts, shows the app beside an Applications shortcut, and makes
+      # "drag it in" obvious without instructions.
+      - name: Build the DMG
+        run: |
+          cd build/macos/Build/Products/Release
+          mkdir -p dmg-staging
+          cp -R "GWCORP Field Agent.app" dmg-staging/
+          # The symlink is what turns the window into a drag-to-install.
+          ln -s /Applications dmg-staging/Applications
+          hdiutil create \
+            -volname "GWCORP Field Agent" \
+            -srcfolder dmg-staging \
+            -ov -format UDZO \
+            "$GITHUB_WORKSPACE/GWCORP_Field_Agent_macOS.dmg"
+          ls -lh "$GITHUB_WORKSPACE/GWCORP_Field_Agent_macOS.dmg"
+
+      # Also a zip: some people would rather not mount an image, and `ditto`
+      # preserves the symlinks and resource forks inside the .app that a plain
+      # zip corrupts — the copy then refuses to launch with no useful error.
+      - name: Package a zip as well
         run: |
           cd build/macos/Build/Products/Release
           ditto -c -k --sequesterRsrc --keepParent \
             "GWCORP Field Agent.app" \
             "$GITHUB_WORKSPACE/GWCORP_Field_Agent_macOS.zip"
-          ls -lh "$GITHUB_WORKSPACE/GWCORP_Field_Agent_macOS.zip"
 
       - uses: actions/upload-artifact@v4
         with:
           name: gwcorp-field-agent-macos
-          path: GWCORP_Field_Agent_macOS.zip
+          path: |
+            GWCORP_Field_Agent_macOS.dmg
+            GWCORP_Field_Agent_macOS.zip
           retention-days: 30
