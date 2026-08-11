@@ -1,0 +1,55 @@
+# Builds the Windows release on GitHub's runners.
+#
+# Exists because Smart App Control on the dev PC blocks gen_snapshot.exe (the
+# AOT compiler), so `flutter build windows --release` cannot run there. The
+# runner has no such policy, so this produces the installer payload without
+# turning off a security feature that cannot be turned back on.
+name: Windows build
+
+on:
+  workflow_dispatch:        # run it by hand from the Actions tab
+  push:
+    branches: [master, main]
+    paths:
+      - 'lib/**'
+      - 'windows/**'
+      - 'pubspec.yaml'
+      - '.github/workflows/windows-build.yml'
+
+jobs:
+  build:
+    runs-on: windows-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+
+      # flutter_tts pulls Windows Runtime speech in through NuGet at CMake
+      # configure time; the runner has it, but make it explicit.
+      - name: Add NuGet
+        uses: nuget/setup-nuget@v2
+
+      - run: flutter --version
+      - run: flutter pub get
+      - run: flutter analyze --no-fatal-infos
+      - run: flutter build windows --release
+
+      # This is what the installer unpacks — it must contain the Release
+      # folder's contents, not the folder itself.
+      - name: Pack installer payload
+        shell: pwsh
+        run: |
+          Compress-Archive -Path build\windows\x64\runner\Release\* `
+                           -DestinationPath app_files.zip `
+                           -CompressionLevel Optimal
+          "payload: {0:N1} MB" -f ((Get-Item app_files.zip).Length / 1MB)
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: gwcorp-field-agent-windows
+          path: app_files.zip
+          retention-days: 30
