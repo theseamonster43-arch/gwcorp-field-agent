@@ -7,9 +7,11 @@ import 'package:window_manager/window_manager.dart';
 import 'firebase_options.dart';
 import 'theme/gw_theme.dart';
 import 'services/deep_links.dart';
+import 'services/update_service.dart';
 import 'utils/app_preferences.dart';
 import 'widgets/desktop_chrome.dart';
 import 'widgets/desktop_rail.dart';
+import 'widgets/gw_update_banner.dart';
 import 'screens/splash_screen.dart';
 import 'screens/sign_in_screen.dart';
 import 'screens/ios/ios_sign_in_screen.dart';
@@ -45,6 +47,9 @@ void main() async {
   await gwLoadPreferences();
   // Catches the cold-start case: the app launched *by* a gwcorp:// link.
   await gwInitDeepLinks();
+  // Not awaited: a slow or unreachable update server must never delay the
+  // first frame.
+  UpdateService.checkOnLaunch();
   runApp(const GwApp());
 }
 
@@ -82,6 +87,12 @@ const _bareChromeRoutes = {'/splash', '/signin'};
 
 final _router = GoRouter(
   initialLocation: '/splash',
+  // Flutter hands platform deep links to the router before anything else sees
+  // them, and gwcorp://satellite?... matches no route — which showed the
+  // agent a "no routes for location" error page instead of the map. The link
+  // is handled by deep_links.dart, so the router just needs to carry on
+  // booting normally rather than treating it as a navigation failure.
+  onException: (_, __, router) => router.go('/splash'),
   // Never actually redirects; this is the one hook that sees every navigation,
   // and the desktop chrome sits above the router so it cannot observe routes
   // on its own. Deferred a frame because notifying listeners mid-navigation
@@ -218,6 +229,9 @@ class _GwAppState extends State<GwApp> with WidgetsBindingObserver {
             color: Colors.transparent,
             child: Column(children: [
               const DesktopTitleBar(),
+              // Full width, above the rail: an out-of-date build affects every
+              // screen, so it should not sit inside one of them.
+              const GwUpdateBanner(),
               Expanded(
                 child: Row(children: [
                   const DesktopRail(),

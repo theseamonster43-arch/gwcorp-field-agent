@@ -1,7 +1,7 @@
 name: gwcorp_field_agent
 description: GWCORP Field Agent — waste intelligence platform.
 publish_to: 'none'
-version: 1.0.0+1
+version: 1.1.0+2
 
 environment:
   sdk: ^3.5.0
@@ -58,6 +58,10 @@ dependencies:
 
   # Receives the gwcorp:// handoff the desktop QR points at.
   app_links: ^6.3.2
+
+  # Reads the running build number so the updater can compare against the
+  # published manifest.
+  package_info_plus: ^8.0.2
 
 dev_dependencies:
   flutter_test:

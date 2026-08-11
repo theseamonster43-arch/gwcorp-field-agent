@@ -40,17 +40,55 @@ class GwCallable {
       );
     }
 
-    final token = await user.getIdToken();
-    final res = await http.post(
-      Uri.https('$_region-$_project.cloudfunctions.net', '/$name'),
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': 'Bearer $token',
-      },
-      body: jsonEncode({'data': data ?? const {}}),
-    );
+    final String? token;
+    try {
+      token = await user.getIdToken();
+    } catch (e) {
+      // firebase_auth's Windows support is thinner than the mobile SDKs, so
+      // this is a real possibility rather than a theoretical one.
+      throw FirebaseFunctionsException(
+        code: 'unauthenticated',
+        message: 'Could not get a sign-in token: $e',
+      );
+    }
+    if (token == null || token.isEmpty) {
+      throw FirebaseFunctionsException(
+        code: 'unauthenticated',
+        message: 'Sign-in token was empty.',
+      );
+    }
 
-    final decoded = jsonDecode(res.body);
+    final http.Response res;
+    try {
+      res = await http.post(
+        Uri.https('$_region-$_project.cloudfunctions.net', '/$name'),
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $token',
+        },
+        body: jsonEncode({'data': data ?? const {}}),
+      );
+    } catch (e) {
+      throw FirebaseFunctionsException(
+        code: 'unavailable',
+        message: 'Network error calling $name: $e',
+      );
+    }
+
+    // ignore: avoid_print
+    print('GwCallable[$name]: HTTP ${res.statusCode}');
+
+    final Object? decoded;
+    try {
+      decoded = jsonDecode(res.body);
+    } catch (_) {
+      // A gateway error page rather than the callable protocol.
+      throw FirebaseFunctionsException(
+        code: 'internal',
+        message: '$name returned ${res.statusCode}: '
+            '${res.body.substring(0, res.body.length.clamp(0, 200))}',
+      );
+    }
     final body = decoded is Map ? Map<String, dynamic>.from(decoded) : const {};
 
     if (res.statusCode != 200) {

@@ -17,6 +17,13 @@ final themeModeNotifier = ValueNotifier<ThemeMode>(ThemeMode.system);
 /// looks close and costs nothing.
 final performanceModeNotifier = ValueNotifier<bool>(false);
 
+/// Check for a newer desktop build on launch.
+///
+/// On by default: an agent running a months-old build is the likeliest way for
+/// a fixed bug to keep being reported. Turning it off stops the check entirely
+/// rather than just hiding the banner.
+final autoUpdateNotifier = ValueNotifier<bool>(true);
+
 // ── Persistence ─────────────────────────────────────────────────────────────
 // Both notifiers above are in-memory only, so without this every preference
 // resets on relaunch. A small JSON file rather than shared_preferences because
@@ -33,6 +40,7 @@ Future<void> _savePreferences() async {
     await file.writeAsString(jsonEncode({
       'themeMode': themeModeNotifier.value.name,
       'performanceMode': performanceModeNotifier.value,
+      'autoUpdate': autoUpdateNotifier.value,
     }));
   } catch (_) {
     // A preference that fails to save is not worth interrupting anyone over.
@@ -54,6 +62,8 @@ Future<void> gwLoadPreferences() async {
         _ => ThemeMode.system,
       };
       performanceModeNotifier.value = map['performanceMode'] == true;
+      // Absent means never set, and the default is on.
+      autoUpdateNotifier.value = map['autoUpdate'] != false;
     }
   } catch (_) {
     // Corrupt or unreadable file — fall back to defaults rather than crash.
@@ -61,4 +71,5 @@ Future<void> gwLoadPreferences() async {
 
   themeModeNotifier.addListener(_savePreferences);
   performanceModeNotifier.addListener(_savePreferences);
+  autoUpdateNotifier.addListener(_savePreferences);
 }

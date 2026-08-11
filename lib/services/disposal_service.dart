@@ -220,7 +220,10 @@ class DisposalService {
         'unauthenticated'    => 'Sign in to search disposal sites.',
         'resource-exhausted' => 'Too many lookups this hour. Try again later.',
         'not-found'          => 'Maps service is not deployed yet.',
-        _                    => 'Could not reach the maps service.',
+        // The real cause is worth showing: this path covers everything from a
+        // missing plugin to an upstream 500, and "could not reach" sent us
+        // hunting the network when it was neither time it happened.
+        _                    => 'Maps error: ${e.message ?? e.code}',
       };
 
   /// Why the last search failed, for the UI to show. Null after a success.
@@ -233,10 +236,13 @@ class DisposalService {
   /// [query] overrides the route's default search text, so the search bar can
   /// look for anything ("scrap yard", "Bee'ah") while the chips stay a
   /// one-tap shortcut for the common categories.
+  /// [lat]/[lng] are optional: a Wi-Fi-only tablet or a device indoors may
+  /// never get a fix, and a text search still works without one — it just
+  /// comes back unbiased rather than nearest-first.
   static Future<List<DisposalSite>> nearby({
     required WasteRoute route,
-    required double lat,
-    required double lng,
+    double? lat,
+    double? lng,
     String? query,
     double radiusMeters = 25000,
   }) async {
@@ -245,7 +251,10 @@ class DisposalService {
         : route.query;
 
     // ~1km buckets — moving a few streets should reuse the cached answer.
-    final key = '$text:${lat.toStringAsFixed(2)}:${lng.toStringAsFixed(2)}';
+    final where = (lat == null || lng == null)
+        ? 'anywhere'
+        : '${lat.toStringAsFixed(2)}:${lng.toStringAsFixed(2)}';
+    final key = '$text:$where';
     final hit = _cache[key];
     if (hit != null) return hit;
 
@@ -255,8 +264,8 @@ class DisposalService {
         final res = await _fn({
           'mode': 'search',
           'query': text,
-          'lat': lat,
-          'lng': lng,
+          if (lat != null) 'lat': lat,
+          if (lng != null) 'lng': lng,
           'radiusMeters': radiusMeters,
         });
         body = Map<String, dynamic>.from(res['data'] as Map);
@@ -274,31 +283,48 @@ class DisposalService {
       }
 
       final sites = <DisposalSite>[];
-      for (final p in places) {
-        if (p is! Map<String, dynamic>) continue;
-        final loc = p['location'];
-        if (loc is! Map<String, dynamic>) continue;
+      for (final raw in places) {
+        // Never test for Map<String, dynamic> here. jsonDecode produces that,
+        // but the callable plugin hands nested maps across the platform
+        // channel as Map<Object?, Object?> — so a type check silently dropped
+        // every result on Android while desktop, still on jsonDecode, worked.
+        if (raw is! Map) continue;
+        final p = Map<String, dynamic>.from(raw);
+
+        final rawLoc = p['location'];
+        if (rawLoc is! Map) continue;
+        final loc = Map<String, dynamic>.from(rawLoc);
+
         final plat = (loc['latitude'] as num?)?.toDouble();
         final plng = (loc['longitude'] as num?)?.toDouble();
         if (plat == null || plng == null) continue;
 
+        final displayName = p['displayName'];
+        final openingHours = p['currentOpeningHours'];
+
         sites.add(DisposalSite(
           id: (p['id'] as String?) ?? '$plat,$plng',
-          name: (p['displayName']?['text'] as String?) ?? 'Disposal site',
+          name: (displayName is Map ? displayName['text'] as String? : null) ??
+              'Disposal site',
           address: (p['formattedAddress'] as String?) ?? '',
           lat: plat,
           lng: plng,
           rating: (p['rating'] as num?)?.toDouble(),
-          openNow: p['currentOpeningHours']?['openNow'] as bool?,
+          openNow:
+              openingHours is Map ? openingHours['openNow'] as bool? : null,
           types: (p['types'] as List?)?.whereType<String>().toList() ?? const [],
           photoNames: (p['photos'] as List?)
-                  ?.whereType<Map<String, dynamic>>()
+                  ?.whereType<Map>()
                   .map((ph) => ph['name'] as String?)
                   .whereType<String>()
                   .take(6)
                   .toList() ??
               const [],
-          distanceMeters: _haversine(lat, lng, plat, plng),
+          // No fix means no meaningful distance; 0 sorts them by relevance
+          // instead, which is the best available ordering.
+          distanceMeters: (lat == null || lng == null)
+              ? 0
+              : _haversine(lat, lng, plat, plng),
         ));
       }
 
@@ -394,23 +420,34 @@ class DisposalService {
       final body   = Map<String, dynamic>.from(res['data'] as Map);
       final routes = body['routes'];
       if (routes is! List || routes.isEmpty) return null;
-      final r = routes.first as Map<String, dynamic>;
+      // Same platform-channel caveat as the search parser: nested maps are
+      // Map<Object?, Object?> on Android, so this cast would throw and the
+      // route would come back null with no explanation.
+      if (routes.first is! Map) return null;
+      final r = Map<String, dynamic>.from(routes.first as Map);
 
       // Duration comes back as protobuf seconds, e.g. "834s".
       final rawDuration = (r['duration'] as String?) ?? '';
       final seconds = int.tryParse(rawDuration.replaceAll('s', '')) ?? 0;
-      final encoded = r['polyline']?['encodedPolyline'] as String?;
+      final polyline = r['polyline'];
+      final encoded =
+          polyline is Map ? polyline['encodedPolyline'] as String? : null;
 
       final steps = <RouteStep>[];
       final legs = r['legs'];
-      if (legs is List && legs.isNotEmpty) {
-        final raw = (legs.first as Map<String, dynamic>)['steps'];
+      if (legs is List && legs.isNotEmpty && legs.first is Map) {
+        final raw = Map<String, dynamic>.from(legs.first as Map)['steps'];
         if (raw is List) {
-          for (final st in raw) {
-            if (st is! Map<String, dynamic>) continue;
+          for (final rawStep in raw) {
+            if (rawStep is! Map) continue;
+            final st = Map<String, dynamic>.from(rawStep);
+
             final nav = st['navigationInstruction'];
-            final end = st['endLocation']?['latLng'];
-            if (nav is! Map<String, dynamic> || end is! Map<String, dynamic>) continue;
+            final endLocation = st['endLocation'];
+            if (nav is! Map || endLocation is! Map) continue;
+            final end = endLocation['latLng'];
+            if (end is! Map) continue;
+
             steps.add(RouteStep(
               instruction: (nav['instructions'] as String?) ?? '',
               maneuver: (nav['maneuver'] as String?) ?? '',

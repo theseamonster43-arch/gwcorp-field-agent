@@ -109,7 +109,12 @@ class _DesktopTitleBarState extends State<DesktopTitleBar> with WindowListener {
         Expanded(
           child: DragToMoveArea(
             child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 18),
+              // Clear the native traffic lights on macOS, which sit in the
+              // top-left of the window and would otherwise cover the brand.
+              padding: EdgeInsets.only(
+                left: Platform.isMacOS ? 82 : 18,
+                right: 18,
+              ),
               child: minimal
                   ? const SizedBox.expand()
                   : Row(children: [
@@ -158,24 +163,31 @@ class _DesktopTitleBarState extends State<DesktopTitleBar> with WindowListener {
           ),
           const SizedBox(width: 14),
         ],
-        _Win11Btn(
-          type: _BtnType.minimize,
-          onTap: () => windowManager.minimize(),
-          gw: gw,
-        ),
-        _Win11Btn(
-          type: _isMaximized ? _BtnType.restore : _BtnType.maximize,
-          onTap: () {
-            if (_isMaximized) windowManager.unmaximize();
-            else windowManager.maximize();
-          },
-          gw: gw,
-        ),
-        _Win11Btn(
-          type: _BtnType.close,
-          onTap: () => windowManager.close(),
-          gw: gw,
-        ),
+        // macOS draws its own traffic lights, on the left, and they carry
+        // behaviour a repaint cannot: the green button full-screens rather
+        // than maximises, and they respond to window focus. Imitating them on
+        // the right would look wrong to every Mac user, so the real ones stay
+        // and this side is left empty.
+        if (!Platform.isMacOS) ...[
+          _Win11Btn(
+            type: _BtnType.minimize,
+            onTap: () => windowManager.minimize(),
+            gw: gw,
+          ),
+          _Win11Btn(
+            type: _isMaximized ? _BtnType.restore : _BtnType.maximize,
+            onTap: () {
+              if (_isMaximized) windowManager.unmaximize();
+              else windowManager.maximize();
+            },
+            gw: gw,
+          ),
+          _Win11Btn(
+            type: _BtnType.close,
+            onTap: () => windowManager.close(),
+            gw: gw,
+          ),
+        ],
       ]),
     );
   }

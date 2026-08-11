@@ -6,6 +6,7 @@ import 'package:google_sign_in/google_sign_in.dart';
 import '../../data/history_repository.dart';
 import '../../theme/gw_theme.dart';
 import '../../widgets/gw_icons.dart';
+import '../../services/update_service.dart';
 import '../../utils/app_preferences.dart';
 import '../../widgets/gw_glass.dart';
 import '../../widgets/gw_responsive.dart';
@@ -261,6 +262,14 @@ class _IosAccountScreenState extends State<IosAccountScreen> {
                 ]),
               ),
             ),
+
+            // ── Updates ───────────────────────────────────────────────────
+            // Desktop only: the phone builds are updated by their stores, and
+            // telling an agent to sideload an APK would be worse than silence.
+            if (UpdateService.supported) ...[
+              const SizedBox(height: 10),
+              const _UpdateCard(),
+            ],
             const SizedBox(height: 18),
 
             // ── Data ──────────────────────────────────────────────────────
@@ -426,6 +435,97 @@ class _AppearancePicker extends StatelessWidget {
               ),
           ],
         ),
+      ),
+    );
+  }
+}
+
+/// Automatic update toggle plus a manual check.
+///
+/// The manual button matters as much as the toggle: an agent who turned auto
+/// off, or who is on a build older than the one that could tell them, still
+/// needs a way to ask.
+class _UpdateCard extends StatefulWidget {
+  const _UpdateCard();
+
+  @override
+  State<_UpdateCard> createState() => _UpdateCardState();
+}
+
+class _UpdateCardState extends State<_UpdateCard> {
+  bool _checking = false;
+  String? _result;
+
+  Future<void> _check() async {
+    setState(() { _checking = true; _result = null; });
+    final found = await UpdateService.check();
+    if (!mounted) return;
+    setState(() {
+      _checking = false;
+      _result = found
+          ? 'Update available.'
+          : (UpdateService.lastError ?? 'You are up to date.');
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final gw = GwTheme.of(context);
+
+    return GwGlass(
+      radius: 20,
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(children: [
+            GwIcon(GwIcons.arrowRight, size: 20, color: gw.text),
+            const SizedBox(width: 14),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text('Automatic updates', style: TextStyle(
+                      color: gw.text, fontSize: 13.5,
+                      fontWeight: FontWeight.w600)),
+                  Text('Check for a newer build when the app starts.',
+                      style: TextStyle(color: gw.muted, fontSize: 11)),
+                ],
+              ),
+            ),
+            ValueListenableBuilder<bool>(
+              valueListenable: autoUpdateNotifier,
+              builder: (_, on, __) => Switch.adaptive(
+                value: on,
+                activeColor: gw.green,
+                onChanged: (v) => autoUpdateNotifier.value = v,
+              ),
+            ),
+          ]),
+          const SizedBox(height: 6),
+          Row(children: [
+            Expanded(
+              child: Text(
+                _result ?? 'Version ${UpdateService.runningVersion}',
+                style: TextStyle(color: gw.muted, fontSize: 11.5),
+              ),
+            ),
+            TextButton(
+              onPressed: _checking ? null : _check,
+              child: _checking
+                  ? SizedBox(
+                      width: 14,
+                      height: 14,
+                      child: CircularProgressIndicator(
+                          strokeWidth: 2, color: gw.green),
+                    )
+                  : Text('Check now', style: TextStyle(
+                      color: gw.green, fontSize: 12.5,
+                      fontWeight: FontWeight.w700)),
+            ),
+          ]),
+        ],
       ),
     );
   }

@@ -104,6 +104,13 @@ class _IosSatelliteScreenState extends State<IosSatelliteScreen> {
     if (gwPendingHandoff.value != null) _onHandoff();
   }
 
+  /// Held when a handoff arrives before the first location fix.
+  ///
+  /// Routing needs an origin, and the link usually lands during startup — so
+  /// selecting immediately produced no route at all, and Start fell through to
+  /// the Google Maps hand-off instead of navigating in-app.
+  DisposalSite? _awaitingFix;
+
   /// Routes straight to a destination scanned from the desktop QR.
   ///
   /// The link carries only a name and a position, so this builds a site from
@@ -114,7 +121,7 @@ class _IosSatelliteScreenState extends State<IosSatelliteScreen> {
     if (h == null || !mounted) return;
     gwPendingHandoff.value = null; // consumed
 
-    _select(DisposalSite(
+    final site = DisposalSite(
       id: 'handoff:${h.lat},${h.lng}',
       name: h.name,
       address: '',
@@ -124,7 +131,21 @@ class _IosSatelliteScreenState extends State<IosSatelliteScreen> {
           ? 0
           : Geolocator.distanceBetween(
               _pos!.latitude, _pos!.longitude, h.lat, h.lng),
-    ));
+    );
+
+    if (_pos == null) {
+      setState(() => _awaitingFix = site);
+      return;
+    }
+    _select(site);
+  }
+
+  /// Runs a handoff that was waiting on a location fix.
+  void _flushAwaitingFix() {
+    final held = _awaitingFix;
+    if (held == null || _pos == null) return;
+    _awaitingFix = null;
+    _select(held);
   }
 
   void _onRegistryChanged() {
@@ -166,6 +187,7 @@ class _IosSatelliteScreenState extends State<IosSatelliteScreen> {
       final cached = await Geolocator.getLastKnownPosition();
       if (cached != null && mounted) {
         setState(() => _pos = cached);
+        _flushAwaitingFix();
         await _search();
       }
 
@@ -175,7 +197,9 @@ class _IosSatelliteScreenState extends State<IosSatelliteScreen> {
         setState(() {
           _loading = false;
           if (_pos == null) {
-            _error = 'No location. Check Wi-Fi or mobile data is on.';
+            // Say what still works. A device with no GPS is not a dead end —
+            // searching by name returns results, just not nearest-first.
+            _error = 'No location yet. Search by name to find a site.';
           }
         });
         return;
@@ -184,6 +208,7 @@ class _IosSatelliteScreenState extends State<IosSatelliteScreen> {
           Geolocator.distanceBetween(
               _pos!.latitude, _pos!.longitude, pos.latitude, pos.longitude) > 500;
       setState(() => _pos = pos);
+      _flushAwaitingFix();
       if (moved) await _search();
     } catch (_) {
       if (!mounted) return;
@@ -231,13 +256,15 @@ class _IosSatelliteScreenState extends State<IosSatelliteScreen> {
 
   Future<void> _search() async {
     final pos = _pos;
-    if (pos == null) return;
+    // A typed query works without a fix — it just comes back unbiased. Only a
+    // blank search truly needs to know where the agent is.
+    if (pos == null && _searchCtrl.text.trim().isEmpty) return;
     setState(() { _loading = true; _error = null; });
 
     final sites = await DisposalService.nearby(
       route: WasteRoute.recyclable,
-      lat: pos.latitude,
-      lng: pos.longitude,
+      lat: pos?.latitude,
+      lng: pos?.longitude,
       query: _searchCtrl.text,
     );
     if (!mounted) return;

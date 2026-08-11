@@ -3,6 +3,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import '../../data/history_repository.dart';
+import '../../services/deep_links.dart';
 import '../../data/models.dart';
 import '../../theme/gw_theme.dart';
 import '../../widgets/gw_icons.dart';
@@ -49,10 +50,21 @@ class _IosMainScreenState extends State<IosMainScreen>
     _sessionSub = HistoryRepository.sessionsStream().listen((s) {
       if (mounted) setState(() => _sessions = s);
     });
+    gwHandoffTick.addListener(_onHandoffArrived);
+    // The link may have opened the app, in which case it landed before this
+    // screen existed.
+    if (gwPendingHandoff.value != null) _onHandoffArrived();
+  }
+
+  /// A destination scanned from the desktop QR — show the map it belongs to.
+  void _onHandoffArrived() {
+    if (!mounted) return;
+    _openSatellite();
   }
 
   @override
   void dispose() {
+    gwHandoffTick.removeListener(_onHandoffArrived);
     _swap.dispose();
     _sessionSub?.cancel();
     _authSub?.cancel();

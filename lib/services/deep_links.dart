@@ -13,6 +13,14 @@ typedef GwHandoff = ({double lat, double lng, String name});
 /// Satellite watches this and routes to whatever lands here.
 final gwPendingHandoff = ValueNotifier<GwHandoff?>(null);
 
+/// Bumped whenever a handoff arrives.
+///
+/// Separate from [gwPendingHandoff] on purpose: the shell needs to switch to
+/// the Satellite tab and Satellite needs to consume the destination, and
+/// whichever listener ran first would otherwise clear the value out from under
+/// the other. A counter cannot be consumed.
+final gwHandoffTick = ValueNotifier<int>(0);
+
 /// Starts listening for handoff links. Safe to call once, from main.
 ///
 /// Handles both the cold start (app launched *by* the link) and the warm case
@@ -38,6 +46,7 @@ Future<void> gwInitDeepLinks() async {
           ? 'Disposal site'
           : uri.queryParameters['n']!.trim(),
     );
+    gwHandoffTick.value++;
   }
 
   try {
