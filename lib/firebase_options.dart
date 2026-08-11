@@ -28,10 +28,7 @@ class DefaultFirebaseOptions {
       case TargetPlatform.iOS:
         return ios;
       case TargetPlatform.macOS:
-        throw UnsupportedError(
-          'DefaultFirebaseOptions have not been configured for macos - '
-          'you can reconfigure this by running the FlutterFire CLI again.',
-        );
+        return macos;
       case TargetPlatform.windows:
         return windows;
       case TargetPlatform.linux:
@@ -67,6 +64,15 @@ class DefaultFirebaseOptions {
     iosClientId: '338927356213-mnnae55jr3dqvhdqhm9751nt9ffc456o.apps.googleusercontent.com',
     iosBundleId: 'com.gwcorp.gwcorpFieldAgent',
   );
+
+  /// macOS reuses the iOS registration.
+  ///
+  /// Firebase identifies an Apple app by its bundle id, and the macOS target
+  /// carries the same one (com.gwcorp.gwcorpFieldAgent), so a second
+  /// registration would be the same app twice. Without this, macOS threw
+  /// UnsupportedError from Firebase.initializeApp — the first line of main —
+  /// so the build launched and died before painting a frame.
+  static const FirebaseOptions macos = ios;
 
   static const FirebaseOptions windows = FirebaseOptions(
     apiKey: 'AIzaSyAFGOHZnmt8QbaJJN-FEt7pGTR8yPrYaPI',

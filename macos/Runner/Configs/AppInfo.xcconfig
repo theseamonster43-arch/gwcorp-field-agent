@@ -10,8 +10,10 @@
 PRODUCT_NAME = GWCORP Field Agent
 
 // The application's bundle identifier.
-// Matches Android and iOS so the Firebase project sees one app, not three.
-PRODUCT_BUNDLE_IDENTIFIER = com.gwcorp.fieldagent
+// Matches what is registered in Firebase (see iosBundleId in
+// firebase_options.dart). Changing it would orphan the app from its Firebase
+// registration, so it stays as generated.
+PRODUCT_BUNDLE_IDENTIFIER = com.gwcorp.gwcorpFieldAgent
 
 // The copyright displayed in application information
 PRODUCT_COPYRIGHT = Copyright © 2026 GWCORP. All rights reserved.
