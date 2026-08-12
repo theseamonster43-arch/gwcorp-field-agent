@@ -27,7 +27,13 @@ class DesktopShell extends StatefulWidget {
 
 class _DesktopShellState extends State<DesktopShell>
     with SingleTickerProviderStateMixin {
-  static const _maxContentWidth = 1040.0;
+  /// Widest a tab is allowed to grow.
+  ///
+  /// 1040 was a phone layout with margins — on any normal monitor it left the
+  /// app sitting in a narrow column with dead space either side. This is wide
+  /// enough to use the screen while still stopping text lines from running so
+  /// long they become hard to read on an ultrawide.
+  static const _maxContentWidth = 1500.0;
 
   List<ScanSession> _sessions = [];
   StreamSubscription<List<ScanSession>>? _sessionSub;
@@ -108,13 +114,20 @@ class _DesktopShellState extends State<DesktopShell>
                 onOpenChats: () => _goTab(kDesktopChatsTab),
                 onOpenAi: () => _goTab(kDesktopAiTab),
               )),
-              _boxed(IosScansScreen(
+              // Full-bleed: Scans is a list beside a detail pane now, not a
+              // document. Centring it in a reading column left a dead margin
+              // down both sides of the window.
+              IosScansScreen(
                 sessions: _sessions,
                 onNewScan: () => context.push('/main/batch'),
-              )),
+              ),
               _boxed(IosAnalyticsScreen(sessions: _sessions)),
-              _boxed(const IosChatsList(showBack: false)),
-              _boxed(const IosAiChatScreen(showBack: false)),
+              // Chats and the assistant are full-height interfaces, not
+              // documents: a conversation pane and a message thread should use
+              // the window. Boxing them to a reading column left them floating
+              // in the middle with dead space either side.
+              const IosChatsList(showBack: false),
+              const IosAiChatScreen(showBack: false),
               // The map is the page. Centring it in a reading-width column
               // leaves wallpaper down both sides, so satellite alone runs
               // edge to edge — stopping at the rail, which is outside this.

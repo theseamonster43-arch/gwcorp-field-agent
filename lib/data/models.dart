@@ -91,6 +91,30 @@ class ScanSession {
             : FieldValue.serverTimestamp(),
         'items': items.map((i) => i.toMap()).toList(),
       };
+
+  /// Estimated mass of everything in this session, in kilograms.
+  ///
+  /// Derived rather than stored: sessions written before weight estimates
+  /// existed, and items the classifier could not size, simply contribute
+  /// nothing instead of making the total wrong.
+  double get estimatedKg =>
+      items.fold(0.0, (sum, i) => sum + (i.estimatedKg ?? 0));
+
+  /// Mass kept out of landfill — the number a client actually asks for.
+  ///
+  /// Counts anything recyclable or headed for compost. Landfill and urgent
+  /// removal are excluded: those were handled, not diverted, and calling them
+  /// diverted would overstate the one figure this platform exists to report.
+  double get divertedKg => items
+      .where((i) =>
+          i.recyclable ||
+          i.recommendedAction.toLowerCase().contains('compost') ||
+          i.recommendedAction.toLowerCase().contains('recycle'))
+      .fold(0.0, (sum, i) => sum + (i.estimatedKg ?? 0));
+
+  /// True when at least one item carries an estimate, so the UI can stay quiet
+  /// rather than reporting a confident "0 kg" for an older session.
+  bool get hasWeightData => items.any((i) => i.estimatedKg != null);
 }
 
 class ClassificationResult {
@@ -103,6 +127,15 @@ class ClassificationResult {
   final int confidence;
   final int? photoIndex; // which photo in the batch produced this item
 
+  /// Rough mass in kilograms, estimated by the classifier from the photo.
+  ///
+  /// Nullable because an estimate is not always possible — a blurred shot or
+  /// an item with no size reference is better left blank than guessed at. The
+  /// figure is deliberately coarse: it exists to total up 'kg diverted from
+  /// landfill' across hundreds of scans, where individual error averages out,
+  /// not to weigh any single item accurately.
+  final double? estimatedKg;
+
   ClassificationResult({
     required this.itemName,
     required this.wasteType,
@@ -112,13 +145,14 @@ class ClassificationResult {
     required this.recommendedAction,
     required this.confidence,
     this.photoIndex,
+    this.estimatedKg,
   });
 
   ClassificationResult withPhotoIndex(int i) => ClassificationResult(
     itemName: itemName, wasteType: wasteType, recyclable: recyclable,
     hazardLevel: hazardLevel, condition: condition,
     recommendedAction: recommendedAction, confidence: confidence,
-    photoIndex: i,
+    photoIndex: i, estimatedKg: estimatedKg,
   );
 
   factory ClassificationResult.fromMap(Map<String, dynamic> m) => ClassificationResult(
@@ -131,6 +165,7 @@ class ClassificationResult {
             m['recommended_action'] ?? m['recommendedAction'] ?? 'Landfill',
         confidence: m['confidence'] ?? 75,
         photoIndex: m['photoIndex'] as int?,
+        estimatedKg: ((m['estimated_kg'] ?? m['estimatedKg']) as num?)?.toDouble(),
       );
 
   Map<String, dynamic> toMap() => {
@@ -142,6 +177,7 @@ class ClassificationResult {
         'recommendedAction': recommendedAction,
         'confidence': confidence,
         if (photoIndex != null) 'photoIndex': photoIndex,
+        if (estimatedKg != null) 'estimatedKg': estimatedKg,
       };
 }
 

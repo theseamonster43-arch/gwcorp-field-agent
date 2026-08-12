@@ -115,7 +115,12 @@ class _IosAccountScreenState extends State<IosAccountScreen> {
       body: SafeArea(
         child: Center(
           child: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 640),
+            // 640 turned this into a narrow ribbon on a monitor. The content
+            // below splits into two columns when there is room, so it needs
+            // width to split into.
+            constraints: BoxConstraints(
+              maxWidth: gwCardColumns(context) > 1 ? 1100 : 640,
+            ),
             child: ListView(
           padding: EdgeInsets.fromLTRB(g, 4, g, gwPageBottom(context)),
           children: [
@@ -312,7 +317,11 @@ class _IosAccountScreenState extends State<IosAccountScreen> {
             const SizedBox(height: 3),
             Center(
               child: Text(
-                'v1.0.0',
+                // Read from the running build rather than hardcoded — this
+                // still said v1.0.0 after the app had shipped 1.1.0.
+                UpdateService.runningVersion.isEmpty
+                    ? ''
+                    : 'v${UpdateService.runningVersion}',
                 style: TextStyle(color: gw.muted, fontSize: 10),
               ),
             ),

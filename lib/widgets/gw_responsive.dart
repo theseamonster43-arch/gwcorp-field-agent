@@ -20,6 +20,18 @@ double gwGutter(BuildContext context) => gwIsWide(context) ? 26 : 16;
 /// Stat tiles run 4-up when there is room, 2-up on a phone.
 int gwStatColumns(BuildContext context) => gwIsWide(context) ? 4 : 2;
 
+/// Columns for a list of cards — scans, chats, sites.
+///
+/// A single column of cards stretched across a monitor is what makes a desktop
+/// app look like a phone app that was merely resized: the eye travels the full
+/// width for one item. Anything meant to be scanned in bulk wraps instead.
+int gwCardColumns(BuildContext context) {
+  final w = MediaQuery.sizeOf(context).width;
+  if (w >= 1500) return 3;
+  if (w >= 1000) return 2;
+  return 1;
+}
+
 /// Page title size.
 double gwTitleSize(BuildContext context) => gwIsWide(context) ? 30 : 26;
 

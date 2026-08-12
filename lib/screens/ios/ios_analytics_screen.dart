@@ -22,10 +22,14 @@ class IosAnalyticsScreen extends StatelessWidget {
     var totalItems = 0;
     var totalRecyclable = 0;
     var totalHazard = 0;
+    var divertedKg = 0.0;
+    var weighedSessions = 0;
     for (final s in sessions) {
       totalItems += s.itemCount;
       totalRecyclable += s.recyclableCount;
       totalHazard += s.hazardCount;
+      divertedKg += s.divertedKg;
+      if (s.hasWeightData) weighedSessions++;
     }
 
     final recyclePct =
@@ -168,6 +172,23 @@ class IosAnalyticsScreen extends StatelessWidget {
                   value: '$totalHazard',
                   accent: gw.amber,
                   sub: totalHazard == 0 ? 'All clear' : 'Needs handling',
+                ),
+                // Diverted mass is the figure a client actually asks for, so
+                // it sits with the headline counts rather than inside a scan.
+                GwStatTile(
+                  icon: GwIcons.chart,
+                  label: 'Diverted',
+                  value: weighedSessions == 0
+                      ? '—'
+                      : (divertedKg >= 1000
+                          ? '${(divertedKg / 1000).toStringAsFixed(1)} t'
+                          : '${divertedKg.toStringAsFixed(1)} kg'),
+                  accent: gw.green,
+                  // Stays quiet rather than claiming a confident "0 kg":
+                  // sessions scanned before weight estimates existed have none.
+                  sub: weighedSessions == 0
+                      ? 'No weight data yet'
+                      : 'kept from landfill',
                 ),
                 GwStatTile(
                   icon: GwIcons.pin,

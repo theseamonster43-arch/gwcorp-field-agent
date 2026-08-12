@@ -9,6 +9,8 @@ import '../../data/user_repository.dart';
 import '../../theme/gw_theme.dart';
 import '../../widgets/gw_icons.dart';
 import '../../widgets/gw_glass.dart';
+import '../../widgets/gw_responsive.dart';
+import '../direct_chat_detail_screen.dart';
 
 class IosChatsList extends StatefulWidget {
   /// False when hosted inside the tab shell — the tab bar is the way out, so
@@ -125,8 +127,69 @@ class _IosDmListState extends State<_IosDmList> {
   List<DirectChat> _chats = [];
   List<AppUser> _users = [];
 
+  /// The conversation shown in the right-hand pane on a wide screen. Null on
+  /// phones, where opening a chat pushes a full screen instead.
+  String? _openId;
+
+  /// Opens a conversation the way the current layout expects.
+  ///
+  /// Pushing a full-screen chat over a 1500px window is the phone behaviour
+  /// that made desktop feel like a stretched app — there is room to show the
+  /// list and the conversation at once, which is what every desktop chat
+  /// client does.
+  void _open(String chatId) {
+    if (gwIsWide(context)) {
+      setState(() => _openId = chatId);
+    } else {
+      context.push('/main/directchat/$chatId');
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
+    if (!gwIsWide(context)) return _list(context);
+
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        // Fixed rather than proportional: a conversation list does not get
+        // more useful as it gets wider, but the messages do.
+        SizedBox(width: 330, child: _list(context)),
+        Container(width: 1, color: GwTheme.of(context).border),
+        Expanded(
+          child: _openId == null
+              ? _noChatSelected(context)
+              : DirectChatDetailScreen(
+                  // Keyed so switching conversations rebuilds the pane rather
+                  // than reusing the previous chat's state.
+                  key: ValueKey(_openId),
+                  chatId: _openId!,
+                  onBack: (_) => setState(() => _openId = null),
+                ),
+        ),
+      ],
+    );
+  }
+
+  Widget _noChatSelected(BuildContext context) {
+    final gw = GwTheme.of(context);
+    return Center(
+      child: Column(mainAxisSize: MainAxisSize.min, children: [
+        GwIcon(GwIcons.chat, size: 34, color: gw.muted),
+        const SizedBox(height: 10),
+        Text(
+          'Pick a conversation',
+          style: TextStyle(
+            color: gw.text,
+            fontSize: 14,
+            fontWeight: FontWeight.w700,
+          ),
+        ),
+      ]),
+    );
+  }
+
+  Widget _list(BuildContext context) {
     final gw = GwTheme.of(context);
     return StreamBuilder<List<DirectChat>>(
       stream: DirectChatRepository.chatsStream(widget.myEmail),
@@ -163,7 +226,7 @@ class _IosDmListState extends State<_IosDmList> {
             }
 
             return ListView.separated(
-              padding: const EdgeInsets.fromLTRB(16, 4, 16, 120),
+              padding: EdgeInsets.fromLTRB(16, 4, 16, gwPageBottom(context)),
               itemCount: _chats.length + newPeople.length,
               separatorBuilder: (_, __) => const SizedBox(height: 8),
               itemBuilder: (_, i) {
@@ -171,11 +234,15 @@ class _IosDmListState extends State<_IosDmList> {
                   return _ChatRow(
                     chat: _chats[i],
                     myEmail: widget.myEmail,
-                    onTap: () => context.push('/main/directchat/${_chats[i].id}'),
+                    onTap: () => _open(_chats[i].id),
                   );
                 }
                 final user = newPeople[i - _chats.length];
-                return _PersonRow(user: user, myEmail: widget.myEmail);
+                return _PersonRow(
+                  user: user,
+                  myEmail: widget.myEmail,
+                  onOpen: gwIsWide(context) ? _open : null,
+                );
               },
             );
           },
@@ -264,7 +331,12 @@ class _ChatRow extends StatelessWidget {
 class _PersonRow extends StatelessWidget {
   final AppUser user;
   final String myEmail;
-  const _PersonRow({required this.user, required this.myEmail});
+
+  /// Where to send the freshly created chat. Desktop opens it beside the list
+  /// rather than pushing a whole screen over the top.
+  final void Function(String chatId)? onOpen;
+
+  const _PersonRow({required this.user, required this.myEmail, this.onOpen});
 
   @override
   Widget build(BuildContext context) {
@@ -285,7 +357,12 @@ class _PersonRow extends StatelessWidget {
           isGroup: false,
           groupName: '',
         );
-        if (context.mounted) context.push('/main/directchat/$chatId');
+        if (!context.mounted) return;
+        if (onOpen != null) {
+          onOpen!(chatId);
+        } else {
+          context.push('/main/directchat/$chatId');
+        }
       },
       child: Row(children: [
         CircleAvatar(

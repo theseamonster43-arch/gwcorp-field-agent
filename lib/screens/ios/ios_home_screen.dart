@@ -280,11 +280,27 @@ class IosHomeScreen extends StatelessWidget {
                 ],
               ),
             )
-          else
+          else if (gwCardColumns(context) == 1)
             for (var i = 0; i < recent.length; i++) ...[
               if (i > 0) const SizedBox(height: 10),
               _recentCard(context, gw, recent[i]),
-            ],
+            ]
+          else
+            // Wraps on a wide screen for the same reason the Scans list does:
+            // four stacked cards under a 4-up stat row leaves the page looking
+            // like a phone that was stretched.
+            GridView.builder(
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              itemCount: recent.length,
+              gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                crossAxisCount: gwCardColumns(context),
+                mainAxisSpacing: 10,
+                crossAxisSpacing: 10,
+                mainAxisExtent: 92,
+              ),
+              itemBuilder: (_, i) => _recentCard(context, gw, recent[i]),
+            ),
         ],
       ),
     );

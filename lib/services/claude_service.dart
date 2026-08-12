@@ -55,8 +55,16 @@ CLASSIFICATION RULES:
 - Electronic devices/cables = waste_type: E-Waste, action: Special Disposal
 - Mixed/contaminated = recyclable: false, action: Landfill
 
+WEIGHT ESTIMATE — estimated_kg field:
+- Estimate the item's mass in kilograms from its apparent size and material.
+- Use everyday references: a drinks can ~0.015, a 1L plastic bottle ~0.04,
+  a full bin bag ~5, a car tyre ~8, a desktop PC ~7.
+- If several identical items are visible, give the total for all of them.
+- Omit the field entirely when the photo gives no usable sense of scale.
+  A blank is far better than a guess — these totals are reported to clients.
+
 Return ONLY a JSON array:
-[{"item_name":"...","waste_type":"Plastic|Metal|Organic|E-Waste|Hazardous|Paper|Glass|Construction|Mixed","recyclable":true,"hazard_level":"None|Low|Medium|High|Critical","condition":"Fresh|Decomposing|Compacted|Contaminated","recommended_action":"Recycle|Compost|Landfill|Special Disposal|Urgent Removal","confidence":85}]
+[{"item_name":"...","waste_type":"Plastic|Metal|Organic|E-Waste|Hazardous|Paper|Glass|Construction|Mixed","recyclable":true,"hazard_level":"None|Low|Medium|High|Critical","condition":"Fresh|Decomposing|Compacted|Contaminated","recommended_action":"Recycle|Compost|Landfill|Special Disposal|Urgent Removal","confidence":85,"estimated_kg":0.04}]
 No explanation, no markdown, ONLY the JSON array.''';
 
   static Future<List<ClassificationResult>> classify(File imageFile) async {

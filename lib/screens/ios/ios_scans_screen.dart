@@ -7,6 +7,7 @@ import '../../theme/gw_theme.dart';
 import '../../widgets/gw_icons.dart';
 import '../../widgets/gw_glass.dart';
 import '../../widgets/gw_responsive.dart';
+import '../session_detail_screen.dart';
 
 /// Scans tab — the full scan history. Replaces the old slide-out drawer.
 class IosScansScreen extends StatefulWidget {
@@ -50,8 +51,77 @@ class _IosScansScreenState extends State<IosScansScreen> {
     return list;
   }
 
+  /// The scan open in the right-hand pane on a wide screen.
+  String? _openId;
+
+  /// Opens a scan the way the current layout expects: in the pane beside the
+  /// list when there is room, as a pushed screen on a phone.
+  void _openScan(String id) {
+    if (gwIsWide(context)) {
+      setState(() => _openId = id);
+    } else {
+      context.push('/main/session/$id');
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
+    // Wide screens keep the list beside the detail, so choosing another scan
+    // is one click rather than back-then-tap.
+    if (!gwIsWide(context)) return _listPane(context);
+
+    // Open the newest scan by default rather than leaving most of the window
+    // empty behind a "pick one" prompt. Computed here instead of assigned to
+    // _openId, which would mean calling setState during a build.
+    final list = _filtered;
+    final openId = _openId ?? (list.isEmpty ? null : list.first.id);
+
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        // Roomier than the chat list: these rows carry a location, a date and
+        // three counts.
+        SizedBox(width: 420, child: _listPane(context)),
+        Container(width: 1, color: GwTheme.of(context).border),
+        Expanded(
+          child: openId == null
+              ? _noScanSelected(context)
+              : SessionDetailScreen(
+                  key: ValueKey(openId),
+                  sessionId: openId,
+                  onBack: () => setState(() => _openId = null),
+                ),
+        ),
+      ],
+    );
+  }
+
+  /// Which scan the detail pane is showing, including the default.
+  String? get _selectedId {
+    if (!gwIsWide(context)) return null;
+    final list = _filtered;
+    return _openId ?? (list.isEmpty ? null : list.first.id);
+  }
+
+  Widget _noScanSelected(BuildContext context) {
+    final gw = GwTheme.of(context);
+    return Center(
+      child: Column(mainAxisSize: MainAxisSize.min, children: [
+        GwIcon(GwIcons.scan, size: 34, color: gw.muted),
+        const SizedBox(height: 10),
+        Text(
+          'Pick a scan',
+          style: TextStyle(
+            color: gw.text,
+            fontSize: 14,
+            fontWeight: FontWeight.w700,
+          ),
+        ),
+      ]),
+    );
+  }
+
+  Widget _listPane(BuildContext context) {
     final gw = GwTheme.of(context);
     final g = gwGutter(context);
     final filtered = _filtered;
@@ -122,12 +192,42 @@ class _IosScansScreenState extends State<IosScansScreen> {
             Expanded(
               child: filtered.isEmpty
                   ? _empty(gw, active)
-                  : ListView.separated(
-                      padding: EdgeInsets.fromLTRB(g, 14, g, gwPageBottom(context)),
-                      itemCount: filtered.length,
-                      separatorBuilder: (_, __) => const SizedBox(height: 10),
-                      itemBuilder: (_, i) => _row(gw, filtered[i]),
-                    ),
+                  : Builder(builder: (context) {
+                      // Inside the master pane there is no room to wrap,
+                      // so columns come from the pane width, not the window.
+                      final columns = gwIsWide(context)
+                          ? 1
+                          : gwCardColumns(context);
+                      final padding =
+                          EdgeInsets.fromLTRB(g, 14, g, gwPageBottom(context));
+
+                      // One card per row is right on a phone and wrong on a
+                      // monitor, where it leaves the eye crossing the whole
+                      // screen for a single scan. Wrap into columns instead.
+                      if (columns == 1) {
+                        return ListView.separated(
+                          padding: padding,
+                          itemCount: filtered.length,
+                          separatorBuilder: (_, __) => const SizedBox(height: 10),
+                          itemBuilder: (_, i) => _row(gw, filtered[i]),
+                        );
+                      }
+
+                      return GridView.builder(
+                        padding: padding,
+                        itemCount: filtered.length,
+                        gridDelegate:
+                            SliverGridDelegateWithFixedCrossAxisCount(
+                          crossAxisCount: columns,
+                          mainAxisSpacing: 10,
+                          crossAxisSpacing: 10,
+                          // Cards are a fixed height rather than a ratio: a
+                          // ratio would stretch them as the window widens.
+                          mainAxisExtent: 92,
+                        ),
+                        itemBuilder: (_, i) => _row(gw, filtered[i]),
+                      );
+                    }),
             ),
           ],
         ),
@@ -180,7 +280,10 @@ class _IosScansScreenState extends State<IosScansScreen> {
     return GwGlass(
       radius: 18,
       padding: const EdgeInsets.all(14),
-      onTap: () => context.push('/main/session/${s.id}'),
+      // Tints the row whose scan is in the detail pane, so it is obvious which
+      // of seventeen is being shown on the right.
+      accent: s.id == _selectedId ? gw.green : null,
+      onTap: () => _openScan(s.id),
       child: Row(children: [
         Container(
           width: 48,
