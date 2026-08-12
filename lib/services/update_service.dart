@@ -4,6 +4,7 @@ import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import 'package:package_info_plus/package_info_plus.dart';
+import 'package:path_provider/path_provider.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../utils/app_preferences.dart';
@@ -70,6 +71,7 @@ class UpdateService {
   static Future<void> checkOnLaunch() async {
     if (!supported) return;
     await _loadRunningVersion();
+    await _detectJustUpdated();
     if (!autoUpdateNotifier.value) return;
     await check(silent: true);
   }
@@ -123,11 +125,106 @@ class UpdateService {
     }
   }
 
+  /// Progress text while an update downloads. Null when idle.
+  static final progress = ValueNotifier<String?>(null);
+
+  /// Set on the first launch after an update, so the app can confirm it
+  /// worked. An update that finishes silently is indistinguishable from one
+  /// that failed — the agent quit the app, something flashed, and now they are
+  /// looking at the same screen wondering.
+  static final justUpdatedTo = ValueNotifier<String?>(null);
+
+  /// Compares the running version against the one recorded last launch.
+  static Future<void> _detectJustUpdated() async {
+    try {
+      final dir = await getApplicationSupportDirectory();
+      final marker = File('${dir.path}${Platform.pathSeparator}gw_version');
+
+      final previous =
+          await marker.exists() ? (await marker.readAsString()).trim() : '';
+      if (previous.isNotEmpty && previous != _runningVersion) {
+        justUpdatedTo.value = _runningVersion;
+      }
+      if (previous != _runningVersion) {
+        await marker.writeAsString(_runningVersion);
+      }
+    } catch (_) {
+      // Not worth surfacing: the confirmation is a nicety, not the update.
+    }
+  }
+
+  /// Downloads the new build and hands off to the installer.
+  ///
+  /// Windows only. The app cannot overwrite itself — Windows memory-maps
+  /// files like icudtl.dat for the life of the process — so the installer is
+  /// launched and this process exits, leaving it free to replace everything.
+  /// The installer closes any straggler before extracting.
+  ///
+  /// Falls back to opening the download page anywhere else.
+  static Future<bool> downloadAndInstall() async {
+    final release = available.value;
+    if (!Platform.isWindows || release?.windowsUrl == null) {
+      return openDownload();
+    }
+
+    try {
+      progress.value = 'Downloading…';
+      final res = await http
+          .get(Uri.parse(release!.windowsUrl!))
+          .timeout(const Duration(minutes: 5));
+      if (res.statusCode != 200) {
+        progress.value = null;
+        return openDownload();
+      }
+
+      final dir = await getTemporaryDirectory();
+      final zip = File('${dir.path}${Platform.pathSeparator}gw_update.zip');
+      await zip.writeAsBytes(res.bodyBytes);
+
+      progress.value = 'Preparing…';
+      final outDir = '${dir.path}${Platform.pathSeparator}gw_update';
+      // Expand-Archive rather than a Dart unzip: it is already there, and the
+      // package only needs unpacking once before the installer takes over.
+      final unzip = await Process.run('powershell', [
+        '-NoProfile',
+        '-Command',
+        'Expand-Archive -Path "${zip.path}" -DestinationPath "$outDir" -Force',
+      ]);
+      if (unzip.exitCode != 0) {
+        progress.value = null;
+        return openDownload();
+      }
+
+      final installer = File('$outDir${Platform.pathSeparator}GWCORP_Installer.exe');
+      if (!await installer.exists()) {
+        progress.value = null;
+        return openDownload();
+      }
+
+      progress.value = 'Starting installer…';
+      // Detached: it has to outlive this process, which is about to end.
+      await Process.start(
+        installer.path,
+        const [],
+        mode: ProcessStartMode.detached,
+        workingDirectory: outDir,
+      );
+
+      await Future<void>.delayed(const Duration(milliseconds: 600));
+      exit(0);
+    } catch (e) {
+      progress.value = null;
+      // ignore: avoid_print
+      print('UpdateService.install: $e');
+      return openDownload();
+    }
+  }
+
   /// Opens the download for this platform in the browser.
   ///
-  /// Deliberately not a silent self-replacing update: swapping a running
-  /// executable needs a helper process on Windows and a signed, notarised
-  /// bundle on macOS. Handing over to the download is honest and works today.
+  /// The fallback when the in-app path cannot run — macOS needs the DMG
+  /// mounted by hand, and any download failure is better ending at a working
+  /// page than a dead end.
   static Future<bool> openDownload() async {
     final url = available.value?.urlForThisPlatform ??
         'https://ihs-gwcorp.web.app/download.html';

@@ -28,6 +28,21 @@
 	<string>MainMenu</string>
 	<key>NSPrincipalClass</key>
 	<string>NSApplication</string>
+	<!-- CoreLocation refuses a request from an app with no usage description,
+	     and does it quietly — the app just never receives a fix, which surfaced
+	     as "could not get your location" with nothing in the logs. The same
+	     applies to the camera and microphone, which the scanner and the voice
+	     assistant need. -->
+	<key>NSLocationWhenInUseUsageDescription</key>
+	<string>Your location is used to find disposal sites near you and to give directions.</string>
+	<key>NSLocationUsageDescription</key>
+	<string>Your location is used to find disposal sites near you and to give directions.</string>
+	<key>NSCameraUsageDescription</key>
+	<string>The camera is used to photograph waste for classification.</string>
+	<key>NSMicrophoneUsageDescription</key>
+	<string>The microphone is used for the voice assistant.</string>
+	<key>NSSpeechRecognitionUsageDescription</key>
+	<string>Speech recognition turns your spoken questions into text for the assistant.</string>
 	<!-- Google sign-in opens a browser and then redirects back to the app on a
 	     custom scheme. Without this the redirect has nowhere to land: the login
 	     succeeds in the browser while the app sits there still asking you to
