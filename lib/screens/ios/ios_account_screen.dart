@@ -2,6 +2,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_sign_in/google_sign_in.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../../data/history_repository.dart';
 import '../../theme/gw_theme.dart';
@@ -308,6 +309,27 @@ class _IosAccountScreenState extends State<IosAccountScreen> {
             ),
             const SizedBox(height: 20),
 
+            // Required for store listings, and honest regardless: the app
+            // uploads photos and sends them to a third-party AI service.
+            Center(
+              child: Wrap(
+                alignment: WrapAlignment.center,
+                spacing: 6,
+                children: [
+                  _LegalLink(
+                    label: 'Privacy Policy',
+                    url: 'https://ihs-gwcorp.web.app/privacy.html',
+                  ),
+                  Text('·', style: TextStyle(color: gw.muted, fontSize: 11)),
+                  _LegalLink(
+                    label: 'Terms of Service',
+                    url: 'https://ihs-gwcorp.web.app/terms.html',
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 14),
+
             Center(
               child: Text(
                 'GWCORP Field Agent',
@@ -535,6 +557,40 @@ class _UpdateCardState extends State<_UpdateCard> {
             ),
           ]),
         ],
+      ),
+    );
+  }
+}
+
+/// Opens a legal page in the browser rather than a WebView.
+///
+/// These documents are the same ones a store listing points at, so they live
+/// on the website and have one canonical version — an in-app copy would drift
+/// from it the first time either changed.
+class _LegalLink extends StatelessWidget {
+  const _LegalLink({required this.label, required this.url});
+
+  final String label;
+  final String url;
+
+  @override
+  Widget build(BuildContext context) {
+    final gw = GwTheme.of(context);
+    return GestureDetector(
+      behavior: HitTestBehavior.opaque,
+      onTap: () => launchUrl(
+        Uri.parse(url),
+        mode: LaunchMode.externalApplication,
+      ),
+      child: Text(
+        label,
+        style: TextStyle(
+          color: gw.muted,
+          fontSize: 11,
+          fontWeight: FontWeight.w600,
+          decoration: TextDecoration.underline,
+          decorationColor: gw.muted.withOpacity(.5),
+        ),
       ),
     );
   }

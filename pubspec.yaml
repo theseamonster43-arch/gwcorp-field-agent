@@ -68,6 +68,8 @@ dev_dependencies:
     sdk: flutter
   flutter_lints: ^4.0.0
   flutter_launcher_icons: ^0.14.1
+  # Wraps a Windows release build into a Store-submittable package.
+  msix: ^3.16.8
 
 flutter:
   uses-material-design: true
@@ -81,3 +83,23 @@ flutter_launcher_icons:
   # The App Store rejects icons with an alpha channel.
   remove_alpha_ios: true
   min_sdk_android: 21
+
+# Microsoft Store packaging.
+#
+# The Store signs the package during certification, which is what makes
+# Smart App Control accept it — unsigned builds are rejected outright and
+# every fresh build starts with no reputation.
+#
+# publisher must be the exact 'Package/Identity/Publisher' string from
+# Partner Center (CN=...). It is issued when the app name is reserved, so it
+# stays blank until then; msix:create fails loudly rather than silently
+# producing something the Store will reject.
+msix_config:
+  display_name: GWCORP Field Agent
+  publisher_display_name: GWCORP
+  identity_name: GWCORP.FieldAgent
+  publisher:
+  msix_version: 1.2.0.0
+  logo_path: assets/icon/app_icon.png
+  capabilities: internetClient, location, webcam, microphone
+  store: true
